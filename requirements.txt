@@ -1,0 +1,12 @@
+# Core HTTP + env handling
+requests>=2.31.0
+python-dotenv>=1.0.1
+
+# CrewAI stack
+crewai>=0.70.0
+crewai-tools>=0.12.0
+litellm>=1.40.0
+
+# Helpful runtime deps often needed by CrewAI / LLM tooling
+pydantic>=2.7.0
+tenacity>=8.2.3
