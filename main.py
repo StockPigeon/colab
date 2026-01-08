@@ -24,6 +24,32 @@ def load_and_validate_env():
     """
     load_dotenv()  # if no .env exists, this does nothing
 
+    def _read_secret_file(var_name: str) -> str | None:
+        secret_dirs = []
+        for env_key in ("CODEX_SECRETS_DIR", "SECRETS_DIR"):
+            env_dir = os.environ.get(env_key)
+            if env_dir:
+                secret_dirs.append(Path(env_dir))
+        secret_dirs.extend(
+            [
+                Path("/run/secrets"),
+                Path("/etc/secrets"),
+                Path("/var/run/secrets"),
+            ]
+        )
+
+        for secret_dir in secret_dirs:
+            candidate = secret_dir / var_name
+            if candidate.is_file():
+                return candidate.read_text(encoding="utf-8").strip() or None
+        return None
+
+    for var_name in ("OPENAI_API_KEY", "FMP_API_KEY", "SERPER_API_KEY"):
+        if not os.environ.get(var_name):
+            secret_value = _read_secret_file(var_name)
+            if secret_value:
+                os.environ[var_name] = secret_value
+
     required = ["OPENAI_API_KEY", "FMP_API_KEY", "SERPER_API_KEY"]
     missing = [k for k in required if not os.environ.get(k)]
     if missing:
@@ -31,7 +57,9 @@ def load_and_validate_env():
             "Missing required environment variables: "
             + ", ".join(missing)
             + "\n\nSet them in GitHub: Repo Settings → Secrets and variables → Codespaces.\n"
-            "Or create a local .env file for development (DO NOT commit it)."
+            "Or create a local .env file for development (DO NOT commit it).\n"
+            "If secrets are stored as files, place them in /run/secrets, /etc/secrets, or /var/run/secrets\n"
+            "(or set CODEX_SECRETS_DIR/SECRETS_DIR to point to the directory)."
         )
 
     # Disable OpenTelemetry if you want quieter logs
