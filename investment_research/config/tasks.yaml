@@ -1,0 +1,459 @@
+task_price_sentiment:
+  description: |
+    You are analyzing {ticker} for the past year.
+
+    You MUST:
+    1) Call price_sentiment_data_tool({ticker}) for price stats and dates.
+    2) Use the search tool to gather catalysts + sentiment signals across the same period:
+    - earnings reactions, analyst actions, major product launches, macro/regulatory headlines
+    - analyst targets/ratings (link sources)
+    - investor positioning/flows ONLY if verifiable; otherwise explicitly say "Limited public data found."
+    - media tone from reputable outlets (link sources)
+    3) OPTIONAL (if X_BEARER_TOKEN exists): call x_recent_posts_tool with a query like:
+    '({ticker} OR ${ticker}) (stock OR earnings OR guidance) -is:retweet lang:en'
+    If not available, do NOT guess social sentiment; state "Limited social data available."
+
+    Output rules:
+    - Never speculate. Never hype.
+    - No fake links. Every claim must be backed by a link in the bullet where it appears.
+    - Use bullet points only in bull/bear sections.
+    - Always include at least 2 bull + 2 bear points; if not enough coverage, write "Limited recent coverage" and explain briefly.
+
+    OUTPUT ONLY THE TEMPLATE BELOW (fill all fields you can, and leave unknowns as "N/A" without guessing):
+
+    📊 Price & Sentiment Analysis: [Company Name] ([Ticker])
+    Using price data from [Start Date] – [End Date] and news from the same period
+
+    🧠 1) Overall Takeaway
+    * Why It Moved: [2 sentences linking cause → effect → impact]
+    * Next Catalyst: [Upcoming event / earnings date / major launch]
+    * Outlook (12M): 🟢 Bullish / 🟡 Neutral / 🔴 Bearish — [Plain-English summary referencing bull/bear case]
+
+    🧭 2) Sentiment Snapshot
+    | Perspective | Tone | Confidence |
+    | :--- | :--- | :--- |
+    | **Analyst** | 🟢 Bullish / 🟡 Neutral / 🔴 Bearish | High / Med / Low |
+    | **Investor** | 🟢 Bullish / 🟡 Neutral / 🔴 Bearish | High / Med / Low |
+    | **Media** | 🟢 Positive / 🟡 Mixed / 🔴 Negative | — |
+
+    Tone Summary (12 Months): [1-sentence evolution of mood]
+    Key Signals:
+    * [Signal] → [Brief summary + link]
+    * [Signal] → [Brief summary + link]
+
+    🐂 3) What the Bulls Say
+    * [Reason 1 + link]
+    * [Reason 2 + link]
+    * [Reason 3 + link (or "Limited recent coverage.")]
+
+    🐻 4) What the Bears Say
+    * [Reason 1 + link]
+    * [Reason 2 + link]
+    * [Reason 3 + link (or "Limited recent coverage.")]
+
+    📈 5) 1-Year Price Overview
+    | Metric | Value |
+    | :--- | :--- |
+    | **1-Year Change** | +X% / -X% |
+    | **52-Week Range** | $LOW – $HIGH |
+    | **Current Price** | $XXX |
+    | **vs 200-Day MA** | Above / Below / At |
+    | **vs S&P 500** | Outperform / Underperform by X pp |
+
+    Price Context: [Short reason for current level]
+
+    📚 6) Sources & Links
+    1. [Source name] — URL
+    2. [Source name] — URL
+    3. [Source name] — URL
+    4. [Source name] — URL
+
+    STOP HERE - DO NOT ADD ANY ADDITIONAL SECTIONS
+  expected_output: ONLY the filled template.
+  agent: sentiment_analyst
+
+task_business_phase:
+  description: |
+    You MUST follow this exact process for {ticker}:
+    1) Use investment_data_tool to get company_name, business_phase_inputs, and business_phase_classification.
+    2) Use the most recent SEC filing link in business_phase_inputs.latest_sec_url as the source.
+    If the URL is missing, use any 10-Q/10-K link from sec_links.
+    3) Apply the phase decision exactly as provided by business_phase_classification (do not invent a different phase).
+    4) OUTPUT ONLY the template below and NOTHING else. No preamble. No commentary.
+
+    PHASE DEFINITIONS & VALUATION METHODS (use ONLY the ones for the chosen phase):
+
+    Phase 1: STARTUP
+    - Valuation Methods: Forward Price to Sales, Total Addressable Market (TAM)
+    - Why These Fit: Company is pre-profit with expanding losses. Valuation relies on future revenue potential and market opportunity size.
+    - Avoid: P/E ratios, DCF models, any earnings-based methods
+
+    Phase 2: HYPERGROWTH
+    - Valuation Methods: Forward Price to Sales, Price to Gross Profit
+    - Why These Fit: Company shows improving unit economics with shrinking losses. Valuation focuses on revenue trajectory and gross profit margins.
+    - Avoid: P/E ratios, DCF models
+
+    Phase 3: SELF FUNDING
+    - Valuation Methods: Price to Sales, Price to Gross Profit
+    - Why These Fit: Company is near breakeven, validating its business model. Current revenue and gross profit provide reliable valuation anchors.
+    - Avoid: Forward/Trailing P/E, Reverse DCF
+
+    Phase 4: OPERATING LEVERAGE
+    - Valuation Methods: Forward Price to Earnings, Forward Price to Free Cash Flow
+    - Why These Fit: Company demonstrates scalable profitability. Forward earnings and cash flow reflect the trajectory.
+    - Avoid: Dividend yield models
+
+    Phase 5: CAPITAL RETURN
+    - Valuation Methods: Trailing Price to Earnings, Trailing Price to Free Cash Flow, Reverse DCF
+    - Why These Fit: Company is mature with stable operations and capital returns. Current earnings and cash generation drive valuation.
+    - Avoid: High growth multiples, forward P/S
+
+    Phase 6: DECLINE
+    - Valuation Methods: Price to Book, Liquidation Value, Asset-Based Valuation
+    - Why These Fit: Traditional growth valuation methods are unreliable for declining businesses due to deteriorating fundamentals.
+    - Avoid: Growth multiples, forward earnings, DCF
+
+
+    OUTPUT TEMPLATE - ONLY OUTPUT WHAT'S BELOW THIS LINE
+
+    # 📊 Business Phase Analysis: [Company Name]
+
+    | Category | Value |
+    | :--- | :--- |
+    | **Current Stage** | [Emoji] Phase [#]: [Name] |
+    | **Stage Confidence Level** | ✅ High / ⚠️ Medium / ❌ Low |
+    | **Evidence** | • Operating Income: $[X]M ([improving/worsening/positive/negative]) <br> • Revenue Growth: [X]% <br> • Capital Returns: [Yes/No with specifics] |
+    | **Most Useful Valuation Method(s)** | [List from approved methods for this phase only] |
+    | **Why These Methods Fit** | [Use exact pre-approved rationale for this phase] |
+    | **Methods to Avoid** | [List other common valuation methods not approved for this phase] |
+
+    ## 💡 Here's what this means for investors:
+    ↓
+    - **What they're doing:** [Simple explanation of company's focus at this stage]
+    - **Why it matters:** [What this tells us about the company's health]
+    - **How to value it:** Focus on [key metrics for this phase] using methods like [primary valuation method]
+    - **What to watch:** [Key indicator for this phase]
+
+    ## 🔗 Sources
+    - [[Company] latest filing]([SEC URL])
+    - Business Growth Cycle Visual
+
+    STOP HERE - DO NOT ADD ANY ADDITIONAL SECTIONS
+  expected_output: ONLY the filled template.
+  agent: phase_classifier
+
+task_business_profile:
+  description: |
+    You are completing a Business Analysis Table for {ticker}.
+
+    You MUST:
+    1) Call business_profile_tool({ticker}) to get company profile, product segments, geographic segments, margin data, and classification hints.
+    2) Use the company description, product segments, geographic segments, and financial metrics from the tool output to answer the questions.
+    3) Answer ALL 7 questions in the template below.
+
+    CLASSIFICATION RULES:
+
+    **Purchase Frequency** (choose ONE):
+    - "Every Few Years" = Durable goods (cars, appliances, furniture), major capital purchases, real estate
+    - "Yearly" = Apparel, electronics accessories, annual subscriptions, B2B contracts renewed annually
+    - "Recurring" = Monthly/quarterly subscriptions, consumables, utilities, SaaS, insurance premiums
+
+    **Pricing Power** (choose ONE):
+    - "Price taker" = Commodity business, no differentiation, gross margins typically <25%
+    - "Would lose customers" = Competitive market with some differentiation, gross margins 25-45%
+    - "Can increase prices" = Strong brand/moat, high switching costs, gross margins typically >45%, demonstrated history of price increases
+
+    **Recession Sensitivity** (choose ONE):
+    - "Highly Cyclical" = Discretionary spending (luxury, travel, autos), revenue drops significantly in recessions
+    - "Normal" = Moderate sensitivity, some demand elasticity but not extreme
+    - "Recession-Proof" = Essential goods/services (healthcare, utilities, staples), demand stable regardless of economy
+
+    Use the classification_hints from the tool as guidance, but verify with actual data.
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 📋 Business Profile Analysis: [Company Name] ([Ticker])
+
+    ## Business Model Overview
+
+    | Question | Answer |
+    | :--- | :--- |
+    | **How does the company make money?** | [2-3 sentences explaining primary revenue streams and business model] |
+    | **What are its key products/services?** | [Bullet list of main products/services with approximate revenue contribution if available] |
+    | **Who are its customers?** | [Customer segments: B2B/B2C/B2G, enterprise/SMB/consumer, specific industries served] |
+    | **Where does the company operate?** | [Geographic breakdown with % of revenue if available, e.g., "US (60%), Europe (25%), Asia (15%)"] |
+
+    ## Business Characteristics
+
+    | Characteristic | Classification | Rationale |
+    | :--- | :--- | :--- |
+    | **Purchase Frequency** | Every Few Years / Yearly / Recurring | [1 sentence explanation based on product type] |
+    | **Pricing Power** | Price taker / Would lose customers / Can increase prices | [1 sentence citing gross margin and competitive position] |
+    | **Recession Sensitivity** | Highly Cyclical / Normal / Recession-Proof | [1 sentence based on sector and demand elasticity] |
+
+    ## Key Metrics Supporting Classification
+    - Gross Margin: [X]%
+    - Sector: [Sector name]
+    - Industry: [Industry name]
+
+    ## 🔗 Sources
+    - [Company website or IR page]
+    - [Any additional sources used]
+
+    STOP HERE - DO NOT ADD ANY ADDITIONAL SECTIONS
+  expected_output: ONLY the filled Business Profile template with all 7 questions answered.
+  agent: business_profile_analyst
+  context:
+    - task_business_phase
+
+task_business_moat:
+  description: |
+    You are now executing a moat analysis protocol.
+    Follow each instruction precisely and in order.
+
+    Your Mission
+
+    for company {ticker}
+
+    Retrieve current financial data and Morningstar analysis
+
+    Evaluate all five moat sources with evidence
+
+    Classify moat size and direction using STRICT CRITERIA
+
+    Output a clean Markdown report (DO NOT wrap in code blocks)
+
+    🛡️ Moat Size Definitions
+    Wide Moat (20+ years durability)
+
+    Network Effects: Each new user materially increases value for others; difficult to replicate at scale
+
+    Switching Costs: Customers are effectively locked in; switching risks revenue loss or operational disruption
+
+    Intangible Assets: Brand provides significant pricing power; exclusive licenses or patents
+
+    Low-Cost Production: Lowest cost structure competitors struggle to match
+
+    Counter-Positioning: Incumbents cannot copy the model without self-harm
+
+    Narrow Moat (3–10 years durability)
+
+    Network Effects: Loyal users but not locked in; niche network
+
+    Switching Costs: Some friction; customers stay due to habit or convenience
+
+    Intangible Assets: Some brand loyalty but price-sensitive customers
+
+    Low-Cost Production: Partial cost advantage, often regionally limited
+
+    Counter-Positioning: Challenges incumbents, but incumbents can fight back
+
+    No Moat (No durable advantage)
+
+    Network Effects: No benefit when users join; small network
+
+    Switching Costs: Customers leave easily; low attachment
+
+    Intangible Assets: Undifferentiated brand with many substitutes
+
+    Low-Cost Production: Higher costs than peers
+
+    Counter-Positioning: Same business model as competitors
+
+    📈 Moat Direction
+
+    Widening: Rising engagement, margin expansion, brand strengthening
+
+    Stable: Flat growth/margins; high retention but no new advantages
+
+    Narrowing: Falling margins, declining engagement, eroding differentiation
+
+    ⚠️ Critical Note on Counter-Positioning
+
+    Counter-positioning exists only when incumbents are structurally unable to copy the business model without damaging their existing economics
+    (e.g., Netflix streaming vs Blockbuster stores).
+
+    Being innovative or different does not qualify.
+
+    🧭 Step 4: Classification Rules
+
+    Apply criteria mechanically:
+
+    Document each moat type as Present / Not Present
+
+    If present, classify as Wide / Narrow
+
+    Determine direction: Widening / Stable / Narrowing
+
+    Identify 1–2 primary moat sources
+
+    🧾 Step 5: Output Template
+    🏰 Moat Analysis: [Company Name] ([Ticker])
+
+    Moat Size: None ❌ / Narrow 🥈 / Wide 🛡️
+    Moat Direction: Widening ↗️ / Stable ➡️ / Narrowing ↘️
+
+    Primary Moat Source(s):
+
+    [Emoji] Moat Type
+
+    [Emoji] Moat Type
+
+    Summary:
+    1–2 sentence narrative summarizing the overall moat thesis, supported by a key metric with citation.
+
+    ⚓ Switching Costs
+
+    Assessment: ✅ Present / ❌ Not Present
+
+    Analysis:
+    Detailed explanation of switching cost dynamics.
+
+    Supporting Data:
+
+    Metric 1: (e.g., Net Dollar Retention: ___%)
+
+    Metric 2: (e.g., Remaining Performance Obligations: $___B, ___% YoY)
+
+    Evidence Quote: Platform stickiness, integration depth, or exit-cost commentary
+
+    💡 Intangible Assets
+
+    Assessment: ✅ Present / ❌ Not Present
+
+    Analysis:
+    Brand strength, patents, licenses, or regulatory advantages.
+
+    Supporting Data:
+
+    Metric 1: (e.g., Commercial Revenue Growth: ___% YoY)
+
+    Metric 2: (e.g., R&D Investment as % of Revenue)
+
+    Evidence Quote: Brand value, IP protection, or regulatory moat evidence
+
+    🌐 Network Effects
+
+    Assessment: ✅ Present / ❌ Not Present
+
+    Analysis:
+    How new users increase value for existing users.
+
+    Supporting Data:
+
+    Metric 1: (e.g., Customer Growth: ___% YoY)
+
+    Metric 2: (e.g., Engagement / usage metric)
+
+    Evidence Quote: Flywheel or network reinforcement description
+
+    ⚙️ Low-Cost Production
+
+    Assessment: ✅ Present / ❌ Not Present
+
+    Analysis:
+    Operational efficiency, scale advantages, or cost leadership.
+
+    Supporting Data:
+
+    Metric 1: (e.g., Gross Margin: ___%)
+
+    Metric 2: (e.g., Operating Margin vs. Peers)
+
+    Evidence Quote: Cost structure or scale efficiency evidence
+
+    ♟️ Counter-Positioning
+
+    Assessment: ✅ Present / ❌ Not Present
+
+    Analysis:
+    Why incumbents cannot replicate the model without self-harm.
+
+    Supporting Data:
+
+    Metric 1: (e.g., Commercial Customer Count: ___+)
+
+    Metric 2: (e.g., Market Share Gain vs Incumbents)
+
+    Evidence Quote: Structural incumbent disadvantage explanation
+
+    ⚠️ Risks & Final Considerations
+
+    Primary Risk:
+    Most significant threat to the company's moat, supported by a cited data point.
+
+    Competitive Landscape:
+    Key competitors and threats, with cited evidence.
+
+    Valuation Risk:
+    Key valuation metric vs peers, with citation.
+
+    Morningstar View Comparison:
+
+    Morningstar's Rating: Official moat size, direction, and rationale (with citation)
+
+    Analysis: 1–2 sentence comparison between your first-principles view and Morningstar's; note whether you confirm, challenge, or add nuance
+
+    🔗 Sources
+
+    List each source numerically:
+
+    Source Name – domain.com
+
+    Source Name – domain.com
+
+    Source Name – domain.com
+
+    Source Name – domain.com
+
+    Source Name – domain.com
+
+    (Continue with all sources used.)
+
+    🧠 Behavioral Guardrails
+
+    No Self-Reference: Do not use this prompt as an analysis source
+
+    Citation Discipline: Every data point must have a source
+
+    Evidence Standard: Minimum 2 metrics + 1 quote per moat type
+
+    Primary Sources Only: Prioritize 10-K, 10-Q, official transcripts
+
+    Assume No Moat: Default position is no moat until proven otherwise
+  expected_output: Qualitative report on moat durability and growth sources (with Sources URLs).
+  agent: strategist
+  context:
+    - task_business_phase
+
+task_management_risk:
+  description: |
+    Perform management alignment + key risk analysis for {ticker}.
+
+    You MUST:
+    1) Use the search tool to find at least 3 sources about management incentives/comp, ownership, buybacks/dividends intent, major controversies, or governance signals.
+    2) Use ScrapeWebsiteTool on the most relevant 1–3 links to extract supporting details.
+    3) Include a "Sources" section at the end listing the URLs you used.
+
+    Also:
+    - Use SEC links (proxy/10-K/10-Q) to assess incentives, dilution, buybacks/dividends.
+    - Use transcript excerpt to flag candor vs buzzwords.
+    - Identify 3–6 key risks (competition, disruption, concentration, regulation, cyclicality, execution).
+  expected_output: Audit of management alignment and key execution risks (with Sources URLs).
+  agent: governance_expert
+  context:
+    - task_business_phase
+    - task_business_moat
+
+task_quant_valuation:
+  description: |
+    Perform quant verification + valuation summary for {ticker}:
+    - Use tool output (metrics/growth/income statement) to report: revenue trend, operating margin, FCF signal if available, and any obvious red flags.
+    - Provide valuation ratios if available from metrics; align suggested valuation method with the Business Phase output.
+    - Call out any mismatch between story and numbers.
+  expected_output: Quantitative verification and valuation summary.
+  agent: quant_auditor
+  context:
+    - task_business_phase
+    - task_business_moat
+    - task_management_risk
