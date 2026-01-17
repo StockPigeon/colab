@@ -13,6 +13,9 @@ from .tools import (
     price_sentiment_data_tool,
     governance_data_tool,
     business_profile_tool,
+    key_metrics_tool,
+    sec_filings_tool,
+    web_search_tool,
 )
 
 
@@ -57,7 +60,7 @@ class InvestmentResearchCrew:
             role=cfg["role"],
             goal=cfg["goal"],
             backstory=cfg["backstory"],
-            tools=[price_sentiment_data_tool, fmp_news_tool, self.scrape_tool],
+            tools=[price_sentiment_data_tool, fmp_news_tool, web_search_tool, self.scrape_tool],
             verbose=True,
             allow_delegation=False,
         )
@@ -68,7 +71,7 @@ class InvestmentResearchCrew:
             role=cfg["role"],
             goal=cfg["goal"],
             backstory=cfg["backstory"],
-            tools=[investment_data_tool, fmp_news_tool, self.scrape_tool],
+            tools=[investment_data_tool, web_search_tool, sec_filings_tool, self.scrape_tool],
             verbose=True,
             allow_delegation=False,
         )
@@ -79,7 +82,7 @@ class InvestmentResearchCrew:
             role=cfg["role"],
             goal=cfg["goal"],
             backstory=cfg["backstory"],
-            tools=[governance_data_tool, fmp_news_tool, self.scrape_tool],
+            tools=[governance_data_tool, sec_filings_tool, self.scrape_tool],
             verbose=True,
             allow_delegation=False,
         )
@@ -90,7 +93,7 @@ class InvestmentResearchCrew:
             role=cfg["role"],
             goal=cfg["goal"],
             backstory=cfg["backstory"],
-            tools=[investment_data_tool],
+            tools=[investment_data_tool, key_metrics_tool],
             verbose=True,
             allow_delegation=False,
         )
@@ -101,7 +104,7 @@ class InvestmentResearchCrew:
             role=cfg["role"],
             goal=cfg["goal"],
             backstory=cfg["backstory"],
-            tools=[business_profile_tool],
+            tools=[business_profile_tool, sec_filings_tool],
             verbose=True,
             allow_delegation=False,
         )
@@ -128,6 +131,15 @@ class InvestmentResearchCrew:
             agent=self._agents[cfg["agent"]],
         )
 
+        # Task: Key Metrics (depends on Business Phase)
+        cfg = self.tasks_config["task_key_metrics"]
+        tasks["task_key_metrics"] = Task(
+            description=cfg["description"],
+            expected_output=cfg["expected_output"],
+            agent=self._agents[cfg["agent"]],
+            context=[tasks["task_business_phase"]],
+        )
+
         # Task: Business Profile (depends on Business Phase)
         cfg = self.tasks_config["task_business_profile"]
         tasks["task_business_profile"] = Task(
@@ -144,6 +156,24 @@ class InvestmentResearchCrew:
             expected_output=cfg["expected_output"],
             agent=self._agents[cfg["agent"]],
             context=[tasks["task_business_phase"]],
+        )
+
+        # Task: Execution Risk (depends on Business Phase and Moat)
+        cfg = self.tasks_config["task_execution_risk"]
+        tasks["task_execution_risk"] = Task(
+            description=cfg["description"],
+            expected_output=cfg["expected_output"],
+            agent=self._agents[cfg["agent"]],
+            context=[tasks["task_business_phase"], tasks["task_business_moat"]],
+        )
+
+        # Task: Growth Drivers (depends on Business Phase and Moat)
+        cfg = self.tasks_config["task_growth_drivers"]
+        tasks["task_growth_drivers"] = Task(
+            description=cfg["description"],
+            expected_output=cfg["expected_output"],
+            agent=self._agents[cfg["agent"]],
+            context=[tasks["task_business_phase"], tasks["task_business_moat"]],
         )
 
         # Task: Management & Risk (depends on Business Phase and Moat)
@@ -188,8 +218,11 @@ class InvestmentResearchCrew:
         ordered_tasks = [
             self._tasks["task_price_sentiment"],
             self._tasks["task_business_phase"],
+            self._tasks["task_key_metrics"],
             self._tasks["task_business_profile"],
             self._tasks["task_business_moat"],
+            self._tasks["task_execution_risk"],
+            self._tasks["task_growth_drivers"],
             self._tasks["task_management_risk"],
             self._tasks["task_quant_valuation"],
         ]

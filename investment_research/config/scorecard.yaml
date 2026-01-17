@@ -1,0 +1,154 @@
+# Investment Scorecard Scoring Configuration
+# Each section is scored 1-5 stars, total max = 45
+
+scoring_criteria:
+  price_sentiment:
+    name: "Price & Sentiment"
+    category: "Market"
+    emoji: "📈"
+    description: "Based on 12-month outlook and sentiment consensus"
+    scoring:
+      bullish: 5
+      neutral: 3
+      bearish: 1
+
+  business_phase:
+    name: "Business Phase"
+    category: "Stage"
+    emoji: "📊"
+    description: "Based on phase classification confidence"
+    scoring:
+      high_confidence: 5
+      medium_confidence: 3
+      low_confidence: 1
+
+  key_metrics:
+    name: "Key Metrics"
+    category: "Financials"
+    emoji: "💰"
+    description: "Based on count of green/yellow/red metrics"
+    scoring:
+      # Score = green_count * 1 + yellow_count * 0.5
+      # Normalized to 1-5 scale
+
+  business_profile:
+    name: "Business Profile"
+    category: "Business"
+    emoji: "🏢"
+    description: "Based on business characteristics favorability"
+    scoring:
+      pricing_power:
+        can_increase_prices: 2
+        would_lose_customers: 1
+        price_taker: 0
+      recession_sensitivity:
+        recession_proof: 2
+        normal: 1
+        highly_cyclical: 0
+      purchase_frequency:
+        recurring: 1
+        yearly: 0.5
+        every_few_years: 0
+      # Max = 5, normalize to 1-5 scale
+
+  business_moat:
+    name: "Competitive Position"
+    category: "Moat"
+    emoji: "🏰"
+    description: "Based on moat size and direction"
+    scoring:
+      moat_size:
+        wide: 4
+        narrow: 2
+        none: 0
+      moat_direction:
+        widening: 1
+        stable: 0
+        narrowing: -1
+      # Score = moat_size + direction (clamped 1-5)
+
+  execution_risk:
+    name: "Execution Risk"
+    category: "Risk"
+    emoji: "⚠️"
+    description: "Based on 4-factor risk assessment (inverted - more greens = higher score)"
+    scoring:
+      # 4 factors: Concentration, Disruption, Outside Forces, Competition
+      green: 1.25  # 4 greens = 5 points
+      yellow: 0.75
+      red: 0.25
+
+  growth_drivers:
+    name: "Growth Drivers"
+    category: "Growth"
+    emoji: "🚀"
+    description: "Based on 7 growth driver strengths"
+    scoring:
+      # 7 drivers evaluated
+      strong: 1
+      moderate: 0.5
+      weak: 0
+      na: 0
+      # Scaled to 1-5
+
+  management_risk:
+    name: "Management & Risk"
+    category: "Management"
+    emoji: "👔"
+    description: "Based on management alignment and risk severity"
+    scoring:
+      alignment:
+        well_aligned: 5
+        neutral: 3
+        misaligned: 1
+
+  valuation:
+    name: "Quant & Valuation"
+    category: "Valuation"
+    emoji: "💵"
+    description: "Based on story vs numbers match and valuation conclusion"
+    scoring:
+      conclusion:
+        undervalued: 5
+        fairly_valued: 3
+        overvalued: 1
+
+# Grade thresholds (max score = 45)
+grade_thresholds:
+  A:
+    min: 40
+    max: 45
+    recommendation: "Strong Buy"
+    description: "Exceptional across most dimensions"
+  B:
+    min: 32
+    max: 39
+    recommendation: "Buy"
+    description: "Solid fundamentals with minor concerns"
+  C:
+    min: 23
+    max: 31
+    recommendation: "Hold"
+    description: "Mixed signals, proceed with caution"
+  D:
+    min: 14
+    max: 22
+    recommendation: "Underweight"
+    description: "Significant concerns identified"
+  F:
+    min: 0
+    max: 13
+    recommendation: "Avoid"
+    description: "Major red flags across multiple areas"
+
+# Section display order
+section_order:
+  - price_sentiment
+  - business_phase
+  - key_metrics
+  - business_profile
+  - business_moat
+  - execution_risk
+  - growth_drivers
+  - management_risk
+  - valuation

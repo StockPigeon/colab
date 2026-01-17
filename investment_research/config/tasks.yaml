@@ -68,8 +68,20 @@ task_price_sentiment:
     3. [Source name] — URL
     4. [Source name] — URL
 
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = Bullish outlook with strong positive sentiment across analysts/investors/media
+    - 4 = Leaning bullish with mostly positive signals
+    - 3 = Neutral/mixed outlook
+    - 2 = Leaning bearish with some concerns
+    - 1 = Bearish outlook with negative sentiment
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The primary driver of this score - e.g., "Strong earnings beat drove bullish sentiment"]
+    ---
+
     STOP HERE - DO NOT ADD ANY ADDITIONAL SECTIONS
-  expected_output: ONLY the filled template.
+  expected_output: ONLY the filled template with section score block.
   agent: sentiment_analyst
 
 task_business_phase:
@@ -138,9 +150,87 @@ task_business_phase:
     - [[Company] latest filing]([SEC URL])
     - Business Growth Cycle Visual
 
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = High confidence phase classification with clear evidence
+    - 4 = Good confidence with supporting metrics
+    - 3 = Medium confidence, some ambiguity in classification
+    - 2 = Low confidence, limited evidence
+    - 1 = Very low confidence, unclear phase
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The primary evidence supporting this phase classification]
+    ---
+
     STOP HERE - DO NOT ADD ANY ADDITIONAL SECTIONS
-  expected_output: ONLY the filled template.
+  expected_output: ONLY the filled template with section score block.
   agent: phase_classifier
+
+task_key_metrics:
+  description: |
+    Collect and evaluate key financial metrics for {ticker} based on its business phase.
+
+    You MUST:
+    1) Call key_metrics_tool({ticker}) to get phase-appropriate metrics with scores.
+    2) Review the scores and identify any concerning patterns (multiple 🔴 indicators).
+    3) Highlight the strongest metrics (🟢) and areas of concern (🔴).
+    4) Write 2-3 sentences summarizing the overall financial health picture.
+    5) Write in plain English—a smart 8th-grader should understand every answer.
+
+    METRIC SCORING:
+    - 🟢 Good = Metric meets or exceeds threshold for healthy companies at this phase
+    - 🟡 Neutral = Metric is acceptable but not standout
+    - 🔴 Bad = Metric is below threshold and warrants attention
+
+    The tool automatically selects the RIGHT metrics for each business phase:
+    - Phase 1 (Startup): Revenue, Gross Margin, Cash Runway, Revenue vs Estimate, Share Dilution
+    - Phase 2 (Hypergrowth): Revenue CAGR, Gross Margin Direction, Cash Runway, Revenue vs Estimate, Share Dilution
+    - Phase 3 (Self Funding): Revenue CAGR, Gross Margin Direction, Operating Margin, FCF, Share Dilution
+    - Phase 4 (Operating Leverage): Revenue CAGR, Operating Margin, FCF Margin, EPS vs Estimate, ROIC
+    - Phase 5 (Capital Return): Revenue CAGR, FCF/Net Income, Interest Coverage, ROIC, Capital Return Yield
+    - Phase 6 (Decline): No metrics tracked
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 📊 Key Metrics Scorecard: [Company Name] ([Ticker])
+
+    **Business Phase:** [Phase emoji] Phase [#]: [Phase Name]
+
+    ## Metrics Summary
+
+    | Category | Metric | Value | Score |
+    | :--- | :--- | ---: | :---: |
+    | Revenue | [Metric Name] | [Value] | 🟢/🟡/🔴 |
+    | Profitability | [Metric Name] | [Value] | 🟢/🟡/🔴 |
+    | Cash / Balance Sheet | [Metric Name] | [Value] | 🟢/🟡/🔴 |
+    | vs Expectations | [Metric Name] | [Value] | 🟢/🟡/🔴 |
+    | Capital Efficiency | [Metric Name] | [Value] | 🟢/🟡/🔴 |
+
+    ## Assessment
+
+    **Overall Score:** [X/5] 🟢
+
+    **Strengths:**
+    - [Strongest metric]: [Why this is impressive in 1 sentence]
+
+    **Concerns:**
+    - [Weakest metric]: [Why this matters in 1 sentence]
+
+    **Summary:**
+    [2-3 sentence plain-English narrative on financial health relative to this business phase]
+
+    ---
+    ### Section Score
+    **Score:** [X/5] (same as Overall Score above)
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The most significant metric driving this score]
+    ---
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS
+  expected_output: Key metrics scorecard with scores and section score block.
+  agent: quant_auditor
+  context:
+    - task_business_phase
 
 task_business_profile:
   description: |
@@ -150,6 +240,8 @@ task_business_profile:
     1) Call business_profile_tool({ticker}) to get company profile, product segments, geographic segments, margin data, and classification hints.
     2) Use the company description, product segments, geographic segments, and financial metrics from the tool output to answer the questions.
     3) Answer ALL 7 questions in the template below.
+    4) Write in plain English—a smart 8th-grader should understand every answer. Avoid jargon.
+    5) Every claim must cite a source. Prioritize the company's own 10-K/10-Q wording.
 
     CLASSIFICATION RULES:
 
@@ -178,18 +270,18 @@ task_business_profile:
 
     | Question | Answer |
     | :--- | :--- |
-    | **How does the company make money?** | [2-3 sentences explaining primary revenue streams and business model] |
+    | **How does the company make money?** | [List revenue streams from most to least important with % breakdown. 2-3 sentences max.] |
     | **What are its key products/services?** | [Bullet list of main products/services with approximate revenue contribution if available] |
-    | **Who are its customers?** | [Customer segments: B2B/B2C/B2G, enterprise/SMB/consumer, specific industries served] |
-    | **Where does the company operate?** | [Geographic breakdown with % of revenue if available, e.g., "US (60%), Europe (25%), Asia (15%)"] |
+    | **Who are its customers?** | [Customer types: individuals, SMBs, enterprises, governments. Include specific industries served.] |
+    | **Where does the company operate?** | [Key geographies with % breakdown, e.g., "US (60%), Europe (25%), Asia (15%)"] |
 
     ## Business Characteristics
 
     | Characteristic | Classification | Rationale |
     | :--- | :--- | :--- |
-    | **Purchase Frequency** | Every Few Years / Yearly / Recurring | [1 sentence explanation based on product type] |
-    | **Pricing Power** | Price taker / Would lose customers / Can increase prices | [1 sentence citing gross margin and competitive position] |
-    | **Recession Sensitivity** | Highly Cyclical / Normal / Recession-Proof | [1 sentence based on sector and demand elasticity] |
+    | **Purchase Frequency** | Every Few Years / Yearly / Recurring | [1 sentence explanation based on product type and customer behavior] |
+    | **Pricing Power** | Price taker / Would lose customers / Can increase prices | [Cite gross margin %, pricing commentary from earnings, or risk factors] |
+    | **Recession Sensitivity** | Highly Cyclical / Normal / Recession-Proof | [Based on sector and demand elasticity, with historical evidence if available] |
 
     ## Key Metrics Supporting Classification
     - Gross Margin: [X]%
@@ -197,11 +289,24 @@ task_business_profile:
     - Industry: [Industry name]
 
     ## 🔗 Sources
-    - [Company website or IR page]
-    - [Any additional sources used]
+    - [1] [Source name and what data it provided]
+    - [2] [Source name and what data it provided]
+    - [Continue for all sources used]
+
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = Recurring revenue + Can increase prices + Recession-proof
+    - 4 = Two favorable characteristics
+    - 3 = Mixed characteristics (one favorable, one unfavorable)
+    - 2 = Two unfavorable characteristics
+    - 1 = Infrequent purchases + Price taker + Highly cyclical
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The most favorable or concerning business characteristic]
+    ---
 
     STOP HERE - DO NOT ADD ANY ADDITIONAL SECTIONS
-  expected_output: ONLY the filled Business Profile template with all 7 questions answered.
+  expected_output: ONLY the filled Business Profile template with section score block.
   agent: business_profile_analyst
   context:
     - task_business_phase
@@ -421,10 +526,256 @@ task_business_moat:
     Primary Sources Only: Prioritize 10-K, 10-Q, official transcripts
 
     Assume No Moat: Default position is no moat until proven otherwise
-  expected_output: Qualitative report on moat durability and growth sources (with Sources URLs).
+
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = Wide moat + Widening direction
+    - 4 = Wide moat + Stable OR Narrow moat + Widening
+    - 3 = Narrow moat + Stable
+    - 2 = Narrow moat + Narrowing OR No moat with some advantages
+    - 1 = No moat
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The primary moat source or lack thereof]
+    ---
+
+    STOP HERE - DO NOT ADD ANY ADDITIONAL SECTIONS
+  expected_output: Qualitative moat report with section score block.
   agent: strategist
   context:
     - task_business_phase
+
+task_execution_risk:
+  description: |
+    You are evaluating Execution Risk for {ticker} using a 4-factor framework.
+
+    You MUST:
+    1) Use governance_data_tool({ticker}) to get SEC filing links and earnings transcript.
+    2) Use fmp_news_tool({ticker}) to get recent news and press releases.
+    3) Use ScrapeWebsiteTool to extract relevant sections from the company's latest 10-K:
+       - "Major Customers" or "Customer Concentration" section
+       - "Risk Factors" section (Item 1A)
+    4) Evaluate each of the 4 risk factors below and assign a color score.
+    5) Write in plain English—a smart 8th-grader should understand every answer.
+
+    RISK FACTOR FRAMEWORK:
+
+    **1. CONCENTRATION RISK** (Customer Dependence)
+    - 🔴 Red: A few customers each >20% of revenue, OR top 3 customers >50% combined
+    - 🟡 Yellow: Single customer 10-15% of revenue, otherwise diversified
+    - 🟢 Green: No customer >10% of revenue, OR millions of individual customers (B2C model)
+
+    Look for: 10-K "Major Customers" section. SEC requires disclosure if any customer >10%.
+
+    **2. DISRUPTION RISK** (Threat of Obsolescence)
+    - 🔴 Red: Identifiable disruption threat (new technology, business model shift, aggressive competitor)
+    - 🟡 Yellow: Normal competitive environment, no specific disruptive threat
+    - 🟢 Green: Company IS the disruptor (first-mover, high R&D, expanding the market)
+
+    Look for: 10-K risk factors mentioning technology or market shifts, news about industry disruption.
+
+    **3. OUTSIDE FORCES** (Regulatory/Political/Macro Risk)
+    - 🔴 Red: High exposure (pending legislation, geopolitical risk, heavy regulation)
+    - 🟡 Yellow: Normal regulatory environment for the industry
+    - 🟢 Green: Minimal outside forces, business model resilient to macro shocks
+
+    Look for: 10-K regulatory risk sections, news about pending legislation, geographic concentration.
+
+    **4. COMPETITION** (Pricing Pressure vs. Market Power)
+    - 🔴 Red: Pricing pressure (declining margins, price wars, many competitors)
+    - 🟡 Yellow: Normal competition (stable margins, typical competitive environment)
+    - 🟢 Green: Monopoly/Duopoly (high gross margins >50%, market leader, few competitors)
+
+    Look for: Gross margin trends from financial data, competitor mentions in transcript/news.
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # ⚠️ Execution Risk Assessment: [Company Name] ([Ticker])
+
+    ## Risk Scorecard
+
+    | Risk Factor | Score | Assessment |
+    | :--- | :---: | :--- |
+    | **Concentration** | 🔴/🟡/🟢 | [1-sentence summary with key data point] |
+    | **Disruption** | 🔴/🟡/🟢 | [1-sentence summary with key evidence] |
+    | **Outside Forces** | 🔴/🟡/🟢 | [1-sentence summary with key risk or lack thereof] |
+    | **Competition** | 🔴/🟡/🟢 | [1-sentence summary with margin or market position evidence] |
+
+    ## Detailed Analysis
+
+    ### 🎯 Concentration Risk: [🔴/🟡/🟢]
+    - **Finding:** [What customer concentration looks like]
+    - **Evidence:** [Quote from 10-K or specific data point]
+    - **Implication:** [What this means for investors]
+
+    ### 💥 Disruption Risk: [🔴/🟡/🟢]
+    - **Finding:** [Is company being disrupted or is the disruptor?]
+    - **Evidence:** [Specific threat or advantage identified]
+    - **Implication:** [What this means for the business model]
+
+    ### 🌍 Outside Forces: [🔴/🟡/🟢]
+    - **Finding:** [Level of regulatory/political/macro exposure]
+    - **Evidence:** [Specific regulation, geography, or macro factor]
+    - **Implication:** [What this means for predictability]
+
+    ### ⚔️ Competition: [🔴/🟡/🟢]
+    - **Finding:** [Market position and pricing power]
+    - **Evidence:** [Gross margin trend, competitor landscape]
+    - **Implication:** [What this means for profitability]
+
+    ## Overall Execution Risk
+
+    **Risk Score:** [X/4] 🟢 | [Y/4] 🟡 | [Z/4] 🔴
+
+    **Summary:** [2-3 sentences on overall execution risk profile and key concern if any]
+
+    ## 🔗 Sources
+    - [1] [Source and what data it provided]
+    - [2] [Source and what data it provided]
+
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = All 4 factors green (minimal execution risk)
+    - 4 = 3 green, 1 yellow
+    - 3 = 2 green, 2 yellow OR mixed
+    - 2 = 1+ red factors
+    - 1 = Multiple red factors (high execution risk)
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The most significant risk or strength identified]
+    ---
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS
+  expected_output: Execution risk assessment with section score block.
+  agent: governance_expert
+  context:
+    - task_business_phase
+    - task_business_moat
+
+task_growth_drivers:
+  description: |
+    You are executing a Growth Drivers Analysis for {ticker}.
+
+    You MUST:
+    1) Call investment_data_tool({ticker}) to get financial data, earnings transcript, and SEC filing links.
+    2) Review the moat analysis from context to understand competitive position.
+    3) Evaluate all 7 growth drivers using the 2×4 framework below.
+    4) Write in plain English—a smart 8th-grader should understand every answer.
+    5) Every claim must cite a source with specific metrics where available.
+
+    GROWTH DRIVER FRAMEWORK (2×4):
+
+    **NEW CUSTOMER ACQUISITION** (4 drivers):
+    - Marketing & Sales Investment: Sales expense trends, go-to-market expansion
+    - New Distribution Channels: DTC launches, retail partnerships, platform additions
+    - Geographic/Market Expansion: International entry, new verticals, TAM expansion
+    - Acquisitions: M&A activity, customer base additions, capability acquisitions
+
+    **EXISTING CUSTOMER EXPANSION** (3 drivers):
+    - Pricing Power: ASP trends, gross margin expansion, price increase history
+    - New Products/Services: Product launches, attach rates, cross-sell/upsell
+    - Customer Retention: Net retention rate, churn trends, contract renewals
+
+    STRENGTH INDICATORS (choose ONE per driver):
+    - 🟢 Strong = Clear evidence with metrics, major investment/focus area
+    - 🟡 Moderate = Some evidence, mentioned but not primary focus
+    - 🔴 Weak = Limited or no evidence of this growth lever
+    - ⚫ N/A = Not applicable to this business model
+
+    CRITICAL: Only evaluate these 7 drivers. Do NOT add additional categories.
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 🚀 Growth Drivers Analysis: [Company Name] ([Ticker])
+
+    ## 📊 Executive Summary
+
+    | Attribute | Assessment |
+    | :--- | :--- |
+    | **Primary Growth Strategy** | New Customers / Existing Customers / Balanced |
+    | **Top 2-3 Drivers** | [List strongest drivers] |
+    | **Phase Alignment** | [How growth strategy fits current business phase] |
+
+    ## 🧲 New Customer Acquisition
+
+    ### 📣 Marketing & Sales Investment
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [Specific metric, e.g., "Sales expense up 23% YoY to $2.3B"]
+    - **Trend:** ↗ Increasing / → Stable / ↘ Decreasing
+
+    ### 🌐 New Distribution Channels
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [e.g., "Launched DTC platform, added 500 retail partners"]
+    - **Trend:** ↗/→/↘
+
+    ### 🌍 Geographic/Market Expansion
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [e.g., "Entered 3 new European markets, international revenue +45%"]
+    - **Trend:** ↗/→/↘
+
+    ### 🤝 Acquisitions
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [e.g., "Acquired 2 companies for $1.2B, adding 2M customers"]
+    - **Trend:** ↗/→/↘
+
+    ## 💰 Existing Customer Expansion
+
+    ### 🏷 Pricing Power
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [e.g., "ASP increased 8%, gross margins expanded 200bps"]
+    - **Trend:** ↗/→/↘
+
+    ### 🧩 New Products/Services
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [e.g., "Launched 5 add-on services, attach rate now 35%"]
+    - **Trend:** ↗/→/↘
+
+    ### 🔁 Customer Retention
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [e.g., "Net retention 115%, churn decreased to 5%"]
+    - **Trend:** ↗/→/↘
+
+    ## 🧠 Strategic Assessment
+
+    ### Primary Drivers (Strongest)
+    1. **[Driver Name]**
+       - Why primary: [Brief explanation]
+       - Key metric: [Most important data point]
+
+    2. **[Driver Name]**
+       - Why primary: [Brief explanation]
+       - Key metric: [Most important data point]
+
+    ### Secondary Drivers (Moderate)
+    - **[Driver]:** [One-line explanation]
+    - **[Driver]:** [One-line explanation]
+
+    ### Untapped Opportunities
+    - **[Driver]:** [Why company isn't fully leveraging this + potential]
+
+    ## 🧮 Growth Driver Matrix
+
+    | Driver | Strength | Evidence Quality | Trend |
+    | :--- | :---: | :---: | :---: |
+    | Marketing & Sales | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+    | New Distribution | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+    | Market Expansion | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+    | Acquisitions | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+    | Pricing Power | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+    | New Products | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+    | Retention | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+
+    ## 🔗 Sources
+    - [1] [Source name and what data it provided]
+    - [2] [Source name and what data it provided]
+    - [Continue for all sources used]
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS OR DRIVERS
+  expected_output: ONLY the filled Growth Drivers Analysis template with all 7 drivers evaluated.
+  agent: strategist
+  context:
+    - task_business_phase
+    - task_business_moat
 
 task_management_risk:
   description: |

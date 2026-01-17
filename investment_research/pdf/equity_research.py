@@ -67,8 +67,6 @@ header-includes:
 
 \\vspace{{0.5cm}}
 
----
-
 """)
 
         # Write each section
@@ -80,7 +78,7 @@ header-includes:
 
         # Disclaimer
         f.write("""
----
+\\vspace{0.5cm}
 
 ## Disclaimer
 
