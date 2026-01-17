@@ -41,7 +41,18 @@ def generate_hedge_fund_memo_pdf(
     sections_dict = {}
     for i, task_output in enumerate(task_outputs):
         name = section_names[i] if i < len(section_names) else f"Section {i+1}"
-        sections_dict[name] = task_output.raw.strip()
+        # Replace --- separators with *** to avoid YAML parsing issues in pandoc
+        content = task_output.raw.strip()
+        # Only replace --- that appear on their own line (horizontal rules)
+        # but not the YAML frontmatter delimiters at the very start
+        lines = content.split('\n')
+        processed_lines = []
+        for line in lines:
+            if line.strip() == '---':
+                processed_lines.append('***')
+            else:
+                processed_lines.append(line)
+        sections_dict[name] = '\n'.join(processed_lines)
 
     with open(temp_md, "w", encoding="utf-8") as f:
         f.write(f"""---
@@ -76,7 +87,7 @@ header-includes:
 
 \\vspace{{0.5cm}}
 
----
+***
 
 """)
 
@@ -104,16 +115,40 @@ header-includes:
             f.write(sections_dict["BUSINESS & MOAT"] + "\n\n")
             f.write("\\newpage\n\n")
 
-        # Management & Risk
-        if "MANAGEMENT & RISK" in sections_dict:
-            f.write("# Key Risks\n\n")
-            f.write(sections_dict["MANAGEMENT & RISK"] + "\n\n")
+        # Key Metrics
+        if "KEY METRICS" in sections_dict:
+            f.write("# Key Metrics\n\n")
+            f.write(sections_dict["KEY METRICS"] + "\n\n")
             f.write("\\newpage\n\n")
 
-        # Valuation
-        if "QUANT & VALUATION" in sections_dict:
+        # Execution Risk
+        if "EXECUTION RISK" in sections_dict:
+            f.write("# Execution Risk\n\n")
+            f.write(sections_dict["EXECUTION RISK"] + "\n\n")
+            f.write("\\newpage\n\n")
+
+        # Growth Drivers
+        if "GROWTH DRIVERS" in sections_dict:
+            f.write("# Growth Drivers\n\n")
+            f.write(sections_dict["GROWTH DRIVERS"] + "\n\n")
+            f.write("\\newpage\n\n")
+
+        # Management Quality (was "MANAGEMENT & RISK")
+        if "MANAGEMENT QUALITY" in sections_dict:
+            f.write("# Management Quality & Risks\n\n")
+            f.write(sections_dict["MANAGEMENT QUALITY"] + "\n\n")
+            f.write("\\newpage\n\n")
+
+        # Valuation (was "QUANT & VALUATION")
+        if "VALUATION" in sections_dict:
             f.write("# Valuation & Financials\n\n")
-            f.write(sections_dict["QUANT & VALUATION"] + "\n\n")
+            f.write(sections_dict["VALUATION"] + "\n\n")
+            f.write("\\newpage\n\n")
+
+        # Investment Scorecard
+        if "INVESTMENT SCORECARD" in sections_dict:
+            f.write("# Investment Scorecard\n\n")
+            f.write(sections_dict["INVESTMENT SCORECARD"] + "\n\n")
 
         # Disclaimer
         f.write("""

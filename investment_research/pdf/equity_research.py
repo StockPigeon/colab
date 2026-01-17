@@ -72,8 +72,18 @@ header-includes:
         # Write each section
         for i, task_output in enumerate(task_outputs):
             name = section_names[i] if i < len(section_names) else f"Section {i+1}"
+            # Replace --- separators with *** to avoid YAML parsing issues in pandoc
+            content = task_output.raw.strip()
+            lines = content.split('\n')
+            processed_lines = []
+            for line in lines:
+                if line.strip() == '---':
+                    processed_lines.append('***')
+                else:
+                    processed_lines.append(line)
+            content = '\n'.join(processed_lines)
             f.write(f"# {name}\n\n")
-            f.write(task_output.raw.strip() + "\n\n")
+            f.write(content + "\n\n")
             f.write("\\newpage\n\n")
 
         # Disclaimer

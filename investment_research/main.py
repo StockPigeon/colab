@@ -35,8 +35,9 @@ SECTION_NAMES = [
     "BUSINESS & MOAT",
     "EXECUTION RISK",
     "GROWTH DRIVERS",
-    "MANAGEMENT & RISK",
-    "QUANT & VALUATION",
+    "MANAGEMENT QUALITY",
+    "VALUATION",
+    "INVESTMENT SCORECARD",
 ]
 
 
@@ -77,10 +78,14 @@ def run_task(task_name: str, ticker: str):
     available_tasks = [
         "task_price_sentiment",
         "task_business_phase",
+        "task_key_metrics",
         "task_business_profile",
         "task_business_moat",
+        "task_execution_risk",
+        "task_growth_drivers",
         "task_management_risk",
         "task_quant_valuation",
+        "task_investment_scorecard",
     ]
 
     if task_name not in available_tasks:
@@ -119,6 +124,7 @@ def run_agent(agent_name: str, ticker: str):
         "governance_expert",
         "quant_auditor",
         "business_profile_analyst",
+        "scorecard_analyst",
     ]
 
     if agent_name not in available_agents:
@@ -261,11 +267,14 @@ Examples:
 
 Available tools: fmp_news, investment_data, price_sentiment, governance_data, business_profile
 
-Available tasks: task_price_sentiment, task_business_phase, task_business_profile,
-                 task_business_moat, task_management_risk, task_quant_valuation
+Available tasks: task_price_sentiment, task_business_phase, task_key_metrics,
+                 task_business_profile, task_business_moat, task_execution_risk,
+                 task_growth_drivers, task_management_risk, task_quant_valuation,
+                 task_investment_scorecard
 
 Available agents: phase_classifier, sentiment_analyst, strategist,
-                  governance_expert, quant_auditor, business_profile_analyst
+                  governance_expert, quant_auditor, business_profile_analyst,
+                  scorecard_analyst
         """
     )
 

@@ -109,6 +109,17 @@ class InvestmentResearchCrew:
             allow_delegation=False,
         )
 
+        # Scorecard Analyst
+        cfg = self.agents_config["scorecard_analyst"]
+        agents["scorecard_analyst"] = Agent(
+            role=cfg["role"],
+            goal=cfg["goal"],
+            backstory=cfg["backstory"],
+            tools=[],  # No tools needed - just aggregates context from other tasks
+            verbose=True,
+            allow_delegation=False,
+        )
+
         return agents
 
     def _build_tasks(self) -> dict:
@@ -198,6 +209,25 @@ class InvestmentResearchCrew:
             ],
         )
 
+        # Task: Investment Scorecard (aggregates all 9 section scores)
+        cfg = self.tasks_config["task_investment_scorecard"]
+        tasks["task_investment_scorecard"] = Task(
+            description=cfg["description"],
+            expected_output=cfg["expected_output"],
+            agent=self._agents[cfg["agent"]],
+            context=[
+                tasks["task_price_sentiment"],
+                tasks["task_business_phase"],
+                tasks["task_key_metrics"],
+                tasks["task_business_profile"],
+                tasks["task_business_moat"],
+                tasks["task_execution_risk"],
+                tasks["task_growth_drivers"],
+                tasks["task_management_risk"],
+                tasks["task_quant_valuation"],
+            ],
+        )
+
         return tasks
 
     def get_agent(self, name: str) -> Agent:
@@ -215,6 +245,7 @@ class InvestmentResearchCrew:
     def crew(self) -> Crew:
         """Build and return the full crew."""
         # Order matters for sequential execution
+        # Investment Scorecard runs last to aggregate all section scores
         ordered_tasks = [
             self._tasks["task_price_sentiment"],
             self._tasks["task_business_phase"],
@@ -225,6 +256,7 @@ class InvestmentResearchCrew:
             self._tasks["task_growth_drivers"],
             self._tasks["task_management_risk"],
             self._tasks["task_quant_valuation"],
+            self._tasks["task_investment_scorecard"],
         ]
 
         ordered_agents = [
@@ -234,6 +266,7 @@ class InvestmentResearchCrew:
             self._agents["strategist"],
             self._agents["governance_expert"],
             self._agents["quant_auditor"],
+            self._agents["scorecard_analyst"],
         ]
 
         return Crew(

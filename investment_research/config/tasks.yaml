@@ -770,8 +770,20 @@ task_growth_drivers:
     - [2] [Source name and what data it provided]
     - [Continue for all sources used]
 
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = Multiple strong growth drivers (3+ green) with positive trends
+    - 4 = 2+ strong drivers with mostly positive trends
+    - 3 = Mixed drivers, some moderate, no clear red flags
+    - 2 = Few growth drivers, mostly weak or declining trends
+    - 1 = No clear growth drivers, negative trends
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The strongest or weakest growth driver shaping outlook]
+    ---
+
     STOP HERE - DO NOT ADD ADDITIONAL SECTIONS OR DRIVERS
-  expected_output: ONLY the filled Growth Drivers Analysis template with all 7 drivers evaluated.
+  expected_output: ONLY the filled Growth Drivers Analysis template with section score block.
   agent: strategist
   context:
     - task_business_phase
@@ -779,18 +791,121 @@ task_growth_drivers:
 
 task_management_risk:
   description: |
-    Perform management alignment + key risk analysis for {ticker}.
+    You are evaluating Management Quality & Alignment for {ticker}.
 
     You MUST:
-    1) Use the search tool to find at least 3 sources about management incentives/comp, ownership, buybacks/dividends intent, major controversies, or governance signals.
-    2) Use ScrapeWebsiteTool on the most relevant 1–3 links to extract supporting details.
-    3) Include a "Sources" section at the end listing the URLs you used.
+    1) Use sec_filings_tool to get the DEF 14A (proxy statement) for executive compensation details.
+    2) Use governance_data_tool({ticker}) to get SEC filing links and earnings transcript.
+    3) Use the search tool to find recent news about management changes, controversies, or governance issues.
+    4) Evaluate each of the 5 alignment factors below and assign a color score.
+    5) Write in plain English—a smart 8th-grader should understand every answer.
 
-    Also:
-    - Use SEC links (proxy/10-K/10-Q) to assess incentives, dilution, buybacks/dividends.
-    - Use transcript excerpt to flag candor vs buzzwords.
-    - Identify 3–6 key risks (competition, disruption, concentration, regulation, cyclicality, execution).
-  expected_output: Audit of management alignment and key execution risks (with Sources URLs).
+    MANAGEMENT ALIGNMENT FRAMEWORK:
+
+    **1. INSIDER OWNERSHIP** (Skin in the Game)
+    - 🟢 Green: CEO/founders own >5% of shares, or significant $ value (>$50M)
+    - 🟡 Yellow: Moderate ownership 1-5%, meaningful but not substantial
+    - 🔴 Red: Minimal ownership <1%, executives primarily compensated via salary
+
+    Look for: Proxy statement beneficial ownership table, insider transaction filings.
+
+    **2. COMPENSATION STRUCTURE** (Incentive Alignment)
+    - 🟢 Green: Performance-based comp tied to long-term metrics (FCF, ROIC, TSR), multi-year vesting
+    - 🟡 Yellow: Mixed metrics, some tied to revenue/earnings with 3-year vesting
+    - 🔴 Red: Comp tied to short-term metrics, easy targets, or primarily time-based vesting
+
+    Look for: Proxy statement executive compensation section, performance metrics.
+
+    **3. CAPITAL ALLOCATION** (Shareholder-Friendly)
+    - 🟢 Green: Clear buyback/dividend policy, executes opportunistically, avoids dilution
+    - 🟡 Yellow: Moderate capital returns, some dilution offset by buybacks
+    - 🔴 Red: Excessive dilution, no capital returns, questionable M&A
+
+    Look for: Share count trends, buyback programs, dividend history, M&A track record.
+
+    **4. COMMUNICATION QUALITY** (Candor & Transparency)
+    - 🟢 Green: Clear guidance, acknowledges mistakes, avoids buzzwords, consistent messaging
+    - 🟡 Yellow: Typical corporate speak, generally reliable guidance
+    - 🔴 Red: Frequent guidance misses, evasive answers, promotional language
+
+    Look for: Earnings transcript tone, guidance accuracy history, analyst relations.
+
+    **5. TRACK RECORD** (Execution History)
+    - 🟢 Green: Consistent execution on stated goals, met/beat guidance historically
+    - 🟡 Yellow: Mixed track record, some misses but generally delivers
+    - 🔴 Red: Pattern of missed targets, strategic pivots, or credibility issues
+
+    Look for: Historical guidance vs actuals, strategic initiative outcomes, tenure.
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 👔 Management Quality Assessment: [Company Name] ([Ticker])
+
+    ## Alignment Scorecard
+
+    | Factor | Score | Assessment |
+    | :--- | :---: | :--- |
+    | **Insider Ownership** | 🔴/🟡/🟢 | [Key stat, e.g., "CEO owns 12% ($3.2B value)"] |
+    | **Compensation Structure** | 🔴/🟡/🟢 | [Key feature, e.g., "60% tied to 3-year TSR"] |
+    | **Capital Allocation** | 🔴/🟡/🟢 | [Key action, e.g., "$5B buyback, 2% dividend yield"] |
+    | **Communication Quality** | 🔴/🟡/🟢 | [Observation, e.g., "Clear guidance, acknowledges risks"] |
+    | **Track Record** | 🔴/🟡/🟢 | [History, e.g., "Beat guidance 8 of last 10 quarters"] |
+
+    ## Detailed Analysis
+
+    ### 🏦 Insider Ownership: [🔴/🟡/🟢]
+    - **Finding:** [Ownership breakdown of key executives]
+    - **Evidence:** [Specific ownership percentages with $ values if available]
+    - **Recent Activity:** [Recent insider buys/sells if notable]
+
+    ### 💰 Compensation Structure: [🔴/🟡/🟢]
+    - **Finding:** [How executives are compensated]
+    - **Metrics Used:** [What performance metrics drive comp]
+    - **Vesting Period:** [Time horizon for equity comp]
+
+    ### 📊 Capital Allocation: [🔴/🟡/🟢]
+    - **Buybacks:** [Buyback program size and execution]
+    - **Dividends:** [Dividend policy and yield]
+    - **Dilution:** [Share count trend over 3-5 years]
+    - **M&A:** [Recent acquisition track record if applicable]
+
+    ### 🎤 Communication Quality: [🔴/🟡/🟢]
+    - **Finding:** [Assessment of management communication style]
+    - **Evidence:** [Specific examples from transcripts or calls]
+    - **Guidance Reliability:** [How often guidance is met]
+
+    ### 📈 Track Record: [🔴/🟡/🟢]
+    - **Finding:** [Overall execution assessment]
+    - **Key Achievements:** [Recent wins or delivered promises]
+    - **Key Misses:** [Any notable failures or pivots]
+
+    ## Overall Management Quality
+
+    **Alignment Score:** [X/5] 🟢 | [Y/5] 🟡 | [Z/5] 🔴
+
+    **Summary:** [2-3 sentences on overall management quality and alignment with shareholders]
+
+    **Key Concern (if any):** [Primary governance or alignment issue to watch]
+
+    ## 🔗 Sources
+    - [1] [Source and what data it provided]
+    - [2] [Source and what data it provided]
+    - [3] [Source and what data it provided]
+
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = All 5 factors green (exceptional alignment)
+    - 4 = 4 green, 1 yellow (strong alignment)
+    - 3 = Mixed scores, no red flags
+    - 2 = 1+ red factors (some concerns)
+    - 1 = Multiple red factors (poor alignment)
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The most significant alignment strength or concern]
+    ---
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS
+  expected_output: Management quality assessment with section score block.
   agent: governance_expert
   context:
     - task_business_phase
@@ -798,13 +913,223 @@ task_management_risk:
 
 task_quant_valuation:
   description: |
-    Perform quant verification + valuation summary for {ticker}:
-    - Use tool output (metrics/growth/income statement) to report: revenue trend, operating margin, FCF signal if available, and any obvious red flags.
-    - Provide valuation ratios if available from metrics; align suggested valuation method with the Business Phase output.
-    - Call out any mismatch between story and numbers.
-  expected_output: Quantitative verification and valuation summary.
+    You are performing Quantitative Valuation Analysis for {ticker}.
+
+    You MUST:
+    1) Call key_metrics_tool({ticker}) to get financial metrics with phase-appropriate context.
+    2) Call investment_data_tool({ticker}) to get additional valuation data.
+    3) Review the Business Phase context to use appropriate valuation methods.
+    4) Calculate or present relevant valuation multiples based on business phase.
+    5) Compare to peers and historical averages where possible.
+    6) Write in plain English—a smart 8th-grader should understand every answer.
+
+    VALUATION METHOD BY PHASE (from Business Phase task):
+    - Phase 1 (Startup): Forward P/S, TAM analysis
+    - Phase 2 (Hypergrowth): Forward P/S, Price to Gross Profit
+    - Phase 3 (Self Funding): P/S, Price to Gross Profit
+    - Phase 4 (Operating Leverage): Forward P/E, Forward P/FCF
+    - Phase 5 (Capital Return): Trailing P/E, Trailing P/FCF, Reverse DCF
+    - Phase 6 (Decline): P/B, Liquidation Value
+
+    VALUATION ASSESSMENT:
+    - 🟢 Undervalued: Trading below fair value based on phase-appropriate metrics
+    - 🟡 Fairly Valued: Trading near fair value
+    - 🔴 Overvalued: Trading above fair value, premium pricing
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 📊 Valuation Analysis: [Company Name] ([Ticker])
+
+    ## Valuation Summary
+
+    | Attribute | Value |
+    | :--- | :--- |
+    | **Current Price** | $[XXX] |
+    | **Market Cap** | $[XXX]B |
+    | **Business Phase** | Phase [#]: [Name] |
+    | **Primary Valuation Method** | [Method appropriate for phase] |
+    | **Valuation Assessment** | 🟢 Undervalued / 🟡 Fairly Valued / 🔴 Overvalued |
+
+    ## Phase-Appropriate Multiples
+
+    | Multiple | Current | 5Y Avg | Sector Avg | Assessment |
+    | :--- | ---: | ---: | ---: | :---: |
+    | [Primary multiple for phase] | [X]x | [X]x | [X]x | 🟢/🟡/🔴 |
+    | [Secondary multiple] | [X]x | [X]x | [X]x | 🟢/🟡/🔴 |
+    | [Tertiary multiple] | [X]x | [X]x | [X]x | 🟢/🟡/🔴 |
+
+    ## Financial Trends
+
+    | Metric | Current | YoY Change | 3Y Trend |
+    | :--- | ---: | ---: | :---: |
+    | Revenue | $[X]B | +/-[X]% | ↗/→/↘ |
+    | Gross Margin | [X]% | +/-[X]pp | ↗/→/↘ |
+    | Operating Margin | [X]% | +/-[X]pp | ↗/→/↘ |
+    | FCF Margin | [X]% | +/-[X]pp | ↗/→/↘ |
+
+    ## Valuation Context
+
+    ### Multiples Analysis
+    - **Current vs Historical:** [How current multiples compare to company's own history]
+    - **Current vs Peers:** [How multiples compare to sector/competitors]
+    - **Premium/Discount Justified?** [Why the current valuation is or isn't justified]
+
+    ### Growth vs Value Check
+    - **Implied Growth Rate:** [What growth rate is priced in based on current multiple]
+    - **Actual Growth Rate:** [Recent and projected growth]
+    - **Gap Analysis:** [Is the market too optimistic or pessimistic?]
+
+    ### Red Flags (if any)
+    - [Any concerning discrepancies between story and numbers]
+    - [Metrics that don't align with narrative]
+
+    ## Fair Value Estimate
+
+    | Scenario | Multiple | Implied Price | vs Current |
+    | :--- | ---: | ---: | ---: |
+    | Bear Case | [X]x | $[XXX] | -[X]% |
+    | Base Case | [X]x | $[XXX] | +/-[X]% |
+    | Bull Case | [X]x | $[XXX] | +[X]% |
+
+    **Methodology:** [Brief explanation of how scenarios were derived]
+
+    ## Investment Verdict
+
+    **Valuation Grade:** 🟢 Undervalued / 🟡 Fairly Valued / 🔴 Overvalued
+
+    **Summary:** [2-3 sentences on whether current price offers attractive entry point]
+
+    **Key Consideration:** [Most important valuation factor for this stock]
+
+    ## 🔗 Sources
+    - [1] [Source and what data it provided]
+    - [2] [Source and what data it provided]
+
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = Clearly undervalued with margin of safety
+    - 4 = Modestly undervalued or fairly valued with upside potential
+    - 3 = Fairly valued, limited margin of safety
+    - 2 = Modestly overvalued or fairly valued with downside risk
+    - 1 = Clearly overvalued, negative expected returns
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The primary valuation metric driving this assessment]
+    ---
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS
+  expected_output: Valuation analysis with section score block.
   agent: quant_auditor
   context:
     - task_business_phase
     - task_business_moat
     - task_management_risk
+
+task_investment_scorecard:
+  description: |
+    You are creating the Investment Scorecard Executive Summary for {ticker}.
+
+    This task aggregates all section scores from the previous 9 tasks into a single-page scorecard.
+
+    You MUST:
+    1) Extract the Section Score (1-5) from each of the 9 analysis tasks in context.
+    2) Calculate the total points (max 45) and determine the letter grade.
+    3) Create a visual scorecard with star ratings for each section.
+    4) Provide the investment recommendation based on the overall grade.
+
+    SECTION SCORE EXTRACTION:
+    Look for the "### Section Score" block at the end of each task output:
+    - task_price_sentiment → Price & Sentiment score
+    - task_business_phase → Business Phase score
+    - task_key_metrics → Key Metrics score
+    - task_business_profile → Business Profile score
+    - task_business_moat → Moat Analysis score
+    - task_execution_risk → Execution Risk score
+    - task_growth_drivers → Growth Drivers score
+    - task_management_risk → Management Quality score
+    - task_quant_valuation → Valuation score
+
+    GRADE CALCULATION:
+    Total Points = Sum of all 9 section scores (each 1-5, max 45)
+
+    | Grade | Points | Recommendation |
+    | :---: | :---: | :--- |
+    | A | 40-45 | Strong Buy |
+    | B | 32-39 | Buy |
+    | C | 23-31 | Hold |
+    | D | 14-22 | Underweight |
+    | F | 0-13 | Avoid |
+
+    STAR CONVERSION:
+    - 5 points = ⭐⭐⭐⭐⭐
+    - 4 points = ⭐⭐⭐⭐
+    - 3 points = ⭐⭐⭐
+    - 2 points = ⭐⭐
+    - 1 point = ⭐
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 📋 Investment Scorecard: [Company Name] ([Ticker])
+
+    ## Overall Grade
+
+    # [GRADE LETTER]
+    **[Total Points]/45** | **[Recommendation]**
+
+    ---
+
+    ## Section Scores
+
+    | Section | Score | Rating | Key Factor |
+    | :--- | :---: | :--- | :--- |
+    | 📊 Price & Sentiment | [X]/5 | [stars] | [Key factor from that section] |
+    | 🔄 Business Phase | [X]/5 | [stars] | [Key factor] |
+    | 📈 Key Metrics | [X]/5 | [stars] | [Key factor] |
+    | 📋 Business Profile | [X]/5 | [stars] | [Key factor] |
+    | 🏰 Moat Analysis | [X]/5 | [stars] | [Key factor] |
+    | ⚠️ Execution Risk | [X]/5 | [stars] | [Key factor] |
+    | 🚀 Growth Drivers | [X]/5 | [stars] | [Key factor] |
+    | 👔 Management Quality | [X]/5 | [stars] | [Key factor] |
+    | 💰 Valuation | [X]/5 | [stars] | [Key factor] |
+
+    ---
+
+    ## Strengths (Highest Scores)
+
+    1. **[Section Name]** ([X]/5): [Brief explanation of why this scored high]
+    2. **[Section Name]** ([X]/5): [Brief explanation]
+    3. **[Section Name]** ([X]/5): [Brief explanation]
+
+    ## Concerns (Lowest Scores)
+
+    1. **[Section Name]** ([X]/5): [Brief explanation of why this scored low]
+    2. **[Section Name]** ([X]/5): [Brief explanation]
+    3. **[Section Name]** ([X]/5): [Brief explanation]
+
+    ---
+
+    ## Investment Thesis
+
+    **Bull Case:** [2-3 sentences on why an investor would buy this stock, drawing from highest-scoring sections]
+
+    **Bear Case:** [2-3 sentences on key risks and concerns, drawing from lowest-scoring sections]
+
+    **Bottom Line:** [1-2 sentences final verdict aligned with the grade and recommendation]
+
+    ---
+
+    *Scorecard generated from comprehensive analysis across 9 research dimensions.*
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS
+  expected_output: Investment scorecard executive summary with letter grade and section ratings.
+  agent: scorecard_analyst
+  context:
+    - task_price_sentiment
+    - task_business_phase
+    - task_key_metrics
+    - task_business_profile
+    - task_business_moat
+    - task_execution_risk
+    - task_growth_drivers
+    - task_management_risk
+    - task_quant_valuation
