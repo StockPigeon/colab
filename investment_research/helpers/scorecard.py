@@ -89,38 +89,43 @@ SCORING_RULES = {
         },
         "description": "Based on story vs numbers match and valuation conclusion",
     },
+    "visual_valuation": {
+        "max_score": 10,
+        "description": "Based on historical multiples and peer comparison analysis (weighted)",
+    },
 }
 
-# Grade thresholds (max score = 45)
+# Grade thresholds (max score = 50)
 GRADE_THRESHOLDS = {
-    "A": (40, 45, "Strong Buy"),
-    "B": (32, 39, "Buy"),
-    "C": (23, 31, "Hold"),
-    "D": (14, 22, "Underweight"),
-    "F": (0, 13, "Avoid"),
+    "A": (44, 50, "Strong Buy"),
+    "B": (36, 43, "Buy"),
+    "C": (26, 35, "Hold"),
+    "D": (16, 25, "Underweight"),
+    "F": (0, 15, "Avoid"),
 }
 
 
-def parse_score_block(text: str) -> Optional[dict]:
+def parse_score_block(text: str, max_score: int = 5) -> Optional[dict]:
     """
     Parse the standardized score block from task output.
 
     Expected format:
     ---
     ### Section Score
-    **Score:** [1-5]/5
+    **Score:** [1-5]/5 or [1-10]/10
     **Confidence:** High/Medium/Low
     **Key Factor:** [description]
     ---
 
     Args:
         text: Task output text
+        max_score: Maximum score for this section (5 or 10)
 
     Returns:
         Dictionary with score, confidence, and key_factor, or None if not found
     """
-    # Look for the score block pattern
-    score_pattern = r"\*\*Score:\*\*\s*(\d)/5"
+    # Look for the score block pattern - handles both /5 and /10
+    score_pattern = r"\*\*Score:\*\*\s*(\d+)/(\d+)"
     confidence_pattern = r"\*\*Confidence:\*\*\s*(High|Medium|Low)"
     key_factor_pattern = r"\*\*Key Factor:\*\*\s*(.+?)(?:\n|---)"
 
@@ -129,8 +134,11 @@ def parse_score_block(text: str) -> Optional[dict]:
     key_factor_match = re.search(key_factor_pattern, text, re.IGNORECASE | re.DOTALL)
 
     if score_match:
+        score = int(score_match.group(1))
+        reported_max = int(score_match.group(2))
         return {
-            "score": int(score_match.group(1)),
+            "score": score,
+            "max_score": reported_max,
             "confidence": confidence_match.group(1) if confidence_match else "Medium",
             "key_factor": key_factor_match.group(1).strip() if key_factor_match else "",
         }
@@ -343,6 +351,21 @@ def calculate_section_score(section_name: str, task_output: str) -> dict:
         score = rules.get("match_scores", {}).get(conclusion, 3)
         key_factor = f"Valuation: {conclusion}"
 
+    elif section_name == "visual_valuation":
+        # Visual valuation uses 1-10 scale
+        parsed = parse_score_block(task_output, max_score=10)
+        if parsed:
+            return parsed
+        conclusion = extract_valuation_conclusion(task_output)
+        # Map to 1-10 scale
+        if conclusion == "undervalued":
+            score = 8
+        elif conclusion == "overvalued":
+            score = 2
+        else:
+            score = 5
+        key_factor = f"Visual Valuation: {conclusion}"
+
     return {
         "score": score,
         "confidence": confidence,
@@ -369,16 +392,29 @@ def calculate_overall_grade(section_scores: dict) -> tuple[str, int, str]:
     return "C", total, "Hold"
 
 
-def score_to_stars(score: int) -> str:
+def score_to_stars(score: int, max_score: int = 5) -> str:
     """
-    Convert numeric score (1-5) to star rating.
+    Convert numeric score to star rating.
 
     Args:
-        score: Score from 1 to 5
+        score: Score value
+        max_score: Maximum possible score (5 or 10)
 
     Returns:
         Star string (e.g., "⭐⭐⭐⭐")
     """
+    if max_score == 10:
+        # Convert 1-10 scale to 1-5 stars
+        if score >= 9:
+            return "⭐⭐⭐⭐⭐"
+        elif score >= 7:
+            return "⭐⭐⭐⭐"
+        elif score >= 5:
+            return "⭐⭐⭐"
+        elif score >= 3:
+            return "⭐⭐"
+        else:
+            return "⭐"
     return "⭐" * max(1, min(5, score))
 
 
@@ -402,24 +438,26 @@ def generate_scorecard_summary(
     """
     grade, total, recommendation = calculate_overall_grade(section_scores)
 
-    # Section display mapping
+    # Section display mapping with max scores
     section_display = {
-        "price_sentiment": ("📈 Market", "Price & Sentiment"),
-        "business_phase": ("📊 Stage", "Business Phase"),
-        "key_metrics": ("💰 Financials", "Key Metrics"),
-        "business_profile": ("🏢 Business", "Business Profile"),
-        "business_moat": ("🏰 Moat", "Competitive Position"),
-        "execution_risk": ("⚠️ Risk", "Execution Risk"),
-        "growth_drivers": ("🚀 Growth", "Growth Drivers"),
-        "management_risk": ("👔 Management", "Management & Risk"),
-        "valuation": ("💵 Valuation", "Quant & Valuation"),
+        "price_sentiment": ("📈 Market", "Price & Sentiment", 5),
+        "business_phase": ("📊 Stage", "Business Phase", 5),
+        "key_metrics": ("💰 Financials", "Key Metrics", 5),
+        "business_profile": ("🏢 Business", "Business Profile", 5),
+        "business_moat": ("🏰 Moat", "Competitive Position", 5),
+        "execution_risk": ("⚠️ Risk", "Execution Risk", 5),
+        "growth_drivers": ("🚀 Growth", "Growth Drivers", 5),
+        "management_risk": ("👔 Management", "Management & Risk", 5),
+        "visual_valuation": ("📈 Valuation", "Visual Valuation", 10),
+        "valuation": ("💵 Valuation", "Quant Valuation", 5),
     }
 
     # Build table rows
     rows = []
-    for section_key, (category, section_name) in section_display.items():
-        score_data = section_scores.get(section_key, {"score": 3})
-        stars = score_to_stars(score_data.get("score", 3))
+    for section_key, (category, section_name, max_score) in section_display.items():
+        score_data = section_scores.get(section_key, {"score": 3 if max_score == 5 else 5})
+        score = score_data.get("score", 3 if max_score == 5 else 5)
+        stars = score_to_stars(score, max_score)
         summary = section_summaries.get(section_key, score_data.get("key_factor", ""))
         rows.append(f"| {category} | {section_name} | {stars} | {summary} |")
 
@@ -459,7 +497,7 @@ def generate_scorecard_summary(
 ---
 
 ## Investment Thesis
-Based on comprehensive analysis across 9 dimensions, {company_name} receives a grade of **{grade}** with a **{recommendation}** recommendation. The total score of {total}/45 reflects {"strong fundamentals" if grade in ["A", "B"] else "mixed signals" if grade == "C" else "significant concerns"}.
+Based on comprehensive analysis across 10 dimensions, {company_name} receives a grade of **{grade}** with a **{recommendation}** recommendation. The total score of {total}/50 reflects {"strong fundamentals" if grade in ["A", "B"] else "mixed signals" if grade == "C" else "significant concerns"}.
 
 ## Top Strengths
 {strengths_text}

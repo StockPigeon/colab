@@ -8,6 +8,9 @@ from .business_profile import business_profile_tool
 from .key_metrics import key_metrics_tool
 from .sec_filings import sec_filings_tool
 from .web_search import web_search_tool
+from .historical_multiples import historical_multiples_tool
+from .peer_comparison import peer_comparison_tool
+from .valuation_charts import valuation_chart_tool
 
 __all__ = [
     "fmp_news_tool",
@@ -18,4 +21,7 @@ __all__ = [
     "key_metrics_tool",
     "sec_filings_tool",
     "web_search_tool",
+    "historical_multiples_tool",
+    "peer_comparison_tool",
+    "valuation_chart_tool",
 ]

@@ -911,6 +911,129 @@ task_management_risk:
     - task_business_phase
     - task_business_moat
 
+task_visual_valuation:
+  description: |
+    You are performing Visual Valuation Analysis for {ticker}.
+
+    This analysis uses historical valuation multiples and peer comparisons to determine
+    if the stock is undervalued, fairly valued, or overvalued.
+
+    You MUST:
+    1) Call historical_multiples_tool({ticker}) to get 10-20 years of historical valuation multiples.
+    2) Call peer_comparison_tool({ticker}) to get peer company valuations.
+    3) Call valuation_chart_tool({ticker}, phase) where phase is the business phase number (1-6).
+       - The tool generates charts saved to reports/charts/ directory.
+    4) Analyze the data for:
+       - Outlier years that may skew statistics (recessions, one-time events)
+       - Evidence of lifecycle phase changes that caused multiple re-rating
+       - Current multiple vs historical percentile
+       - Premium/discount to peers and whether it's justified
+    5) Write in plain English—a smart 8th-grader should understand every answer.
+
+    PHASE-SPECIFIC MULTIPLES TO ANALYZE:
+    - Phase 1-2 (Startup/Hypergrowth): P/S Ratio (Forward P/S if available)
+    - Phase 3 (Self Funding): P/S Ratio
+    - Phase 4-5 (Operating Leverage/Capital Return): P/E Ratio, P/FCF Ratio
+    - Phase 6 (Decline): P/B Ratio
+
+    VALUATION ASSESSMENT CRITERIA:
+    - 🟢 Undervalued: Current multiple below historical median AND below peer average
+    - 🟡 Fairly Valued: Current multiple within 15% of historical median OR peer average
+    - 🔴 Overvalued: Current multiple above historical median AND above peer average
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 📈 Visual Valuation Analysis: [Company Name] ([Ticker])
+
+    ## Valuation Summary
+
+    | Attribute | Value |
+    | :--- | :--- |
+    | **Current Price** | $[XXX] |
+    | **Business Phase** | Phase [#]: [Name] |
+    | **Primary Multiple Used** | [Multiple name appropriate for phase] |
+    | **Current Multiple** | [X]x |
+    | **Historical Median** | [X]x |
+    | **Peer Average** | [X]x |
+    | **Valuation Verdict** | 🟢 Undervalued / 🟡 Fairly Valued / 🔴 Overvalued |
+
+    ## Historical Multiple Analysis
+
+    ![Historical [Multiple] Chart](reports/charts/[TICKER]_[Multiple]_historical.png)
+
+    ### Chart Interpretation
+    - **Current vs Historical:** Current [multiple] of [X]x is [X]% [above/below] the [N]-year median of [X]x
+    - **Historical Range:** [X]x (min) to [X]x (max)
+    - **Current Percentile:** [X]th percentile of historical range
+
+    ### Outlier Analysis
+    | Year | Multiple | Likely Cause | Include in Analysis? |
+    | :---: | :---: | :--- | :---: |
+    | [Year] | [X]x | [Reason - recession, one-time charge, etc.] | Yes/No |
+    | [Year] | [X]x | [Reason] | Yes/No |
+
+    ### Phase Change Detection
+    - **Evidence of Re-rating:** [Yes/No - explain if multiple structurally shifted]
+    - **Pre-[Year] Average:** [X]x (if applicable)
+    - **Post-[Year] Average:** [X]x (if applicable)
+    - **Implication:** [What this means for current valuation context]
+
+    ## Peer Comparison Analysis
+
+    ![Peer Comparison Chart](reports/charts/[TICKER]_[Multiple]_peer_comparison.png)
+
+    ### Peer Multiples Table
+    | Company | Ticker | [Multiple] | vs {ticker} |
+    | :--- | :---: | :---: | :---: |
+    | [Peer 1 Name] | [XXX] | [X]x | +/-[X]% |
+    | [Peer 2 Name] | [XXX] | [X]x | +/-[X]% |
+    | [Peer 3 Name] | [XXX] | [X]x | +/-[X]% |
+    | **Peer Average** | — | [X]x | +/-[X]% |
+
+    ### Premium/Discount Justification
+    - **Current Premium/Discount:** {ticker} trades at [X]% [premium/discount] to peer average
+    - **Justified?** [Yes/No - explain based on growth, moat, quality factors from earlier analysis]
+    - **Key Differentiator:** [What makes this company different from peers that justifies premium/discount]
+
+    ## Valuation Verdict
+
+    **Assessment:** 🟢 Undervalued / 🟡 Fairly Valued / 🔴 Overvalued
+
+    **Confidence:** High / Medium / Low
+
+    **Rationale:** [3-4 sentences explaining the verdict based on:
+    1) Where current multiple sits vs historical range
+    2) How it compares to peers
+    3) Whether any premium/discount is justified by business quality
+    4) Key risks to the valuation thesis]
+
+    **Fair Value Range:** $[Low] - $[High] based on [methodology - e.g., "applying historical median P/E to current earnings"]
+
+    ## 🔗 Sources
+    - [1] Historical multiples data from FMP API
+    - [2] Peer comparison data from FMP API
+    - [3] [Any additional sources used]
+
+    ---
+    ### Section Score
+    **Score:** [1-10]/10
+    - 10 = Significantly undervalued (>30% below fair value) with high confidence
+    - 8-9 = Undervalued (15-30% below fair value) with good confidence
+    - 6-7 = Modestly undervalued (5-15% below fair value)
+    - 5 = Fairly valued (within 5% of fair value)
+    - 3-4 = Modestly overvalued (5-15% above fair value)
+    - 1-2 = Significantly overvalued (>15% above fair value)
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The primary valuation insight driving this score]
+    ---
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS
+  expected_output: Visual valuation analysis with charts and section score block (1-10 scale).
+  agent: valuation_analyst
+  context:
+    - task_business_phase
+    - task_business_moat
+
 task_quant_valuation:
   description: |
     You are performing Quantitative Valuation Analysis for {ticker}.
@@ -1024,48 +1147,58 @@ task_quant_valuation:
     - task_business_phase
     - task_business_moat
     - task_management_risk
+    - task_visual_valuation
 
 task_investment_scorecard:
   description: |
     You are creating the Investment Scorecard Executive Summary for {ticker}.
 
-    This task aggregates all section scores from the previous 9 tasks into a single-page scorecard.
+    This task aggregates all section scores from the previous 10 tasks into a single-page scorecard.
 
     You MUST:
-    1) Extract the Section Score (1-5) from each of the 9 analysis tasks in context.
-    2) Calculate the total points (max 45) and determine the letter grade.
+    1) Extract the Section Score from each of the 10 analysis tasks in context.
+    2) Calculate the total points (max 50) and determine the letter grade.
     3) Create a visual scorecard with star ratings for each section.
     4) Provide the investment recommendation based on the overall grade.
 
     SECTION SCORE EXTRACTION:
     Look for the "### Section Score" block at the end of each task output:
-    - task_price_sentiment → Price & Sentiment score
-    - task_business_phase → Business Phase score
-    - task_key_metrics → Key Metrics score
-    - task_business_profile → Business Profile score
-    - task_business_moat → Moat Analysis score
-    - task_execution_risk → Execution Risk score
-    - task_growth_drivers → Growth Drivers score
-    - task_management_risk → Management Quality score
-    - task_quant_valuation → Valuation score
+    - task_price_sentiment → Price & Sentiment score (1-5)
+    - task_business_phase → Business Phase score (1-5)
+    - task_key_metrics → Key Metrics score (1-5)
+    - task_business_profile → Business Profile score (1-5)
+    - task_business_moat → Moat Analysis score (1-5)
+    - task_execution_risk → Execution Risk score (1-5)
+    - task_growth_drivers → Growth Drivers score (1-5)
+    - task_management_risk → Management Quality score (1-5)
+    - task_visual_valuation → Visual Valuation score (1-10) ⭐ WEIGHTED SECTION
+    - task_quant_valuation → Quant Valuation score (1-5)
 
     GRADE CALCULATION:
-    Total Points = Sum of all 9 section scores (each 1-5, max 45)
+    Total Points = Sum of all 10 section scores (max 50)
+    NOTE: Visual Valuation is scored 1-10 to weight it higher (valuation is critical).
 
     | Grade | Points | Recommendation |
     | :---: | :---: | :--- |
-    | A | 40-45 | Strong Buy |
-    | B | 32-39 | Buy |
-    | C | 23-31 | Hold |
-    | D | 14-22 | Underweight |
-    | F | 0-13 | Avoid |
+    | A | 44-50 | Strong Buy |
+    | B | 36-43 | Buy |
+    | C | 26-35 | Hold |
+    | D | 16-25 | Underweight |
+    | F | 0-15 | Avoid |
 
-    STAR CONVERSION:
+    STAR CONVERSION (for 1-5 scores):
     - 5 points = ⭐⭐⭐⭐⭐
     - 4 points = ⭐⭐⭐⭐
     - 3 points = ⭐⭐⭐
     - 2 points = ⭐⭐
     - 1 point = ⭐
+
+    STAR CONVERSION (for Visual Valuation 1-10 score):
+    - 9-10 = ⭐⭐⭐⭐⭐
+    - 7-8 = ⭐⭐⭐⭐
+    - 5-6 = ⭐⭐⭐
+    - 3-4 = ⭐⭐
+    - 1-2 = ⭐
 
     OUTPUT ONLY THE TEMPLATE BELOW:
 
@@ -1074,7 +1207,7 @@ task_investment_scorecard:
     ## Overall Grade
 
     # [GRADE LETTER]
-    **[Total Points]/45** | **[Recommendation]**
+    **[Total Points]/50** | **[Recommendation]**
 
     ---
 
@@ -1090,21 +1223,22 @@ task_investment_scorecard:
     | ⚠️ Execution Risk | [X]/5 | [stars] | [Key factor] |
     | 🚀 Growth Drivers | [X]/5 | [stars] | [Key factor] |
     | 👔 Management Quality | [X]/5 | [stars] | [Key factor] |
-    | 💰 Valuation | [X]/5 | [stars] | [Key factor] |
+    | 📈 Visual Valuation | [X]/10 | [stars] | [Key factor] |
+    | 💰 Quant Valuation | [X]/5 | [stars] | [Key factor] |
 
     ---
 
     ## Strengths (Highest Scores)
 
-    1. **[Section Name]** ([X]/5): [Brief explanation of why this scored high]
-    2. **[Section Name]** ([X]/5): [Brief explanation]
-    3. **[Section Name]** ([X]/5): [Brief explanation]
+    1. **[Section Name]** ([X]/max): [Brief explanation of why this scored high]
+    2. **[Section Name]** ([X]/max): [Brief explanation]
+    3. **[Section Name]** ([X]/max): [Brief explanation]
 
     ## Concerns (Lowest Scores)
 
-    1. **[Section Name]** ([X]/5): [Brief explanation of why this scored low]
-    2. **[Section Name]** ([X]/5): [Brief explanation]
-    3. **[Section Name]** ([X]/5): [Brief explanation]
+    1. **[Section Name]** ([X]/max): [Brief explanation of why this scored low]
+    2. **[Section Name]** ([X]/max): [Brief explanation]
+    3. **[Section Name]** ([X]/max): [Brief explanation]
 
     ---
 
@@ -1118,7 +1252,7 @@ task_investment_scorecard:
 
     ---
 
-    *Scorecard generated from comprehensive analysis across 9 research dimensions.*
+    *Scorecard generated from comprehensive analysis across 10 research dimensions.*
 
     STOP HERE - DO NOT ADD ADDITIONAL SECTIONS
   expected_output: Investment scorecard executive summary with letter grade and section ratings.
@@ -1132,4 +1266,5 @@ task_investment_scorecard:
     - task_execution_risk
     - task_growth_drivers
     - task_management_risk
+    - task_visual_valuation
     - task_quant_valuation

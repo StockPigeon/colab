@@ -16,6 +16,9 @@ from .tools import (
     key_metrics_tool,
     sec_filings_tool,
     web_search_tool,
+    historical_multiples_tool,
+    peer_comparison_tool,
+    valuation_chart_tool,
 )
 
 
@@ -120,6 +123,17 @@ class InvestmentResearchCrew:
             allow_delegation=False,
         )
 
+        # Valuation Analyst
+        cfg = self.agents_config["valuation_analyst"]
+        agents["valuation_analyst"] = Agent(
+            role=cfg["role"],
+            goal=cfg["goal"],
+            backstory=cfg["backstory"],
+            tools=[historical_multiples_tool, peer_comparison_tool, valuation_chart_tool],
+            verbose=True,
+            allow_delegation=False,
+        )
+
         return agents
 
     def _build_tasks(self) -> dict:
@@ -196,7 +210,19 @@ class InvestmentResearchCrew:
             context=[tasks["task_business_phase"], tasks["task_business_moat"]],
         )
 
-        # Task: Quant Valuation (depends on Phase, Moat, and Risk)
+        # Task: Visual Valuation (depends on Phase and Moat)
+        cfg = self.tasks_config["task_visual_valuation"]
+        tasks["task_visual_valuation"] = Task(
+            description=cfg["description"],
+            expected_output=cfg["expected_output"],
+            agent=self._agents[cfg["agent"]],
+            context=[
+                tasks["task_business_phase"],
+                tasks["task_business_moat"],
+            ],
+        )
+
+        # Task: Quant Valuation (depends on Phase, Moat, Risk, and Visual Valuation)
         cfg = self.tasks_config["task_quant_valuation"]
         tasks["task_quant_valuation"] = Task(
             description=cfg["description"],
@@ -206,10 +232,11 @@ class InvestmentResearchCrew:
                 tasks["task_business_phase"],
                 tasks["task_business_moat"],
                 tasks["task_management_risk"],
+                tasks["task_visual_valuation"],
             ],
         )
 
-        # Task: Investment Scorecard (aggregates all 9 section scores)
+        # Task: Investment Scorecard (aggregates all 10 section scores)
         cfg = self.tasks_config["task_investment_scorecard"]
         tasks["task_investment_scorecard"] = Task(
             description=cfg["description"],
@@ -224,6 +251,7 @@ class InvestmentResearchCrew:
                 tasks["task_execution_risk"],
                 tasks["task_growth_drivers"],
                 tasks["task_management_risk"],
+                tasks["task_visual_valuation"],
                 tasks["task_quant_valuation"],
             ],
         )
@@ -255,6 +283,7 @@ class InvestmentResearchCrew:
             self._tasks["task_execution_risk"],
             self._tasks["task_growth_drivers"],
             self._tasks["task_management_risk"],
+            self._tasks["task_visual_valuation"],
             self._tasks["task_quant_valuation"],
             self._tasks["task_investment_scorecard"],
         ]
@@ -266,6 +295,7 @@ class InvestmentResearchCrew:
             self._agents["strategist"],
             self._agents["governance_expert"],
             self._agents["quant_auditor"],
+            self._agents["valuation_analyst"],
             self._agents["scorecard_analyst"],
         ]
 

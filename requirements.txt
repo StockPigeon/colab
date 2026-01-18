@@ -10,3 +10,6 @@ litellm>=1.40.0
 # Helpful runtime deps often needed by CrewAI / LLM tooling
 pydantic>=2.7.0
 tenacity>=8.2.3
+
+# Visualization for valuation charts
+matplotlib>=3.8.0

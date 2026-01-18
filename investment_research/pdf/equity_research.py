@@ -3,6 +3,7 @@
 import os
 import subprocess
 from datetime import datetime
+from pathlib import Path
 
 from .base import check_pdf_dependencies
 
@@ -52,6 +53,7 @@ header-includes:
   - \\usepackage{{xcolor}}
   - \\usepackage{{colortbl}}
   - \\usepackage{{booktabs}}
+  - \\usepackage{{graphicx}}
   - \\definecolor{{headerblue}}{{RGB}}{{0,51,102}}
   - \\definecolor{{lightgray}}{{RGB}}{{245,245,245}}
   - \\pagestyle{{fancy}}
@@ -97,6 +99,17 @@ header-includes:
 *Data sources: Financial Modeling Prep API, company filings, and public news sources.*
 """)
 
+    # Determine resource path for images (charts directory)
+    # Use the parent of the output directory as the resource path base
+    output_dir = Path(output_path).parent
+    resource_paths = [
+        str(output_dir),  # Same directory as output
+        str(output_dir / "charts"),  # charts subdirectory
+        "reports/charts",  # Default charts location
+        ".",  # Current directory
+    ]
+    resource_path = ":".join(resource_paths)
+
     # Generate PDF
     cmd = [
         "pandoc", temp_md,
@@ -108,6 +121,7 @@ header-includes:
         "-V", "colorlinks=true",
         "-V", "linkcolor=headerblue",
         "-V", "urlcolor=headerblue",
+        f"--resource-path={resource_path}",
     ]
     subprocess.run(cmd, check=True)
 
