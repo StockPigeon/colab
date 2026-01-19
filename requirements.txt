@@ -13,3 +13,6 @@ tenacity>=8.2.3
 
 # Visualization for valuation charts
 matplotlib>=3.8.0
+
+# Streamlit web app
+streamlit>=1.31.0

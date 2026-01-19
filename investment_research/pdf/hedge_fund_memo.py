@@ -3,8 +3,10 @@
 import os
 import subprocess
 from datetime import datetime
+from pathlib import Path
 
 from .base import check_pdf_dependencies
+from .emoji_substitution import substitute_emojis
 
 
 def generate_hedge_fund_memo_pdf(
@@ -41,10 +43,9 @@ def generate_hedge_fund_memo_pdf(
     sections_dict = {}
     for i, task_output in enumerate(task_outputs):
         name = section_names[i] if i < len(section_names) else f"Section {i+1}"
-        # Replace --- separators with *** to avoid YAML parsing issues in pandoc
         content = task_output.raw.strip()
-        # Only replace --- that appear on their own line (horizontal rules)
-        # but not the YAML frontmatter delimiters at the very start
+
+        # Replace --- separators with *** to avoid YAML parsing issues in pandoc
         lines = content.split('\n')
         processed_lines = []
         for line in lines:
@@ -52,7 +53,15 @@ def generate_hedge_fund_memo_pdf(
                 processed_lines.append('***')
             else:
                 processed_lines.append(line)
-        sections_dict[name] = '\n'.join(processed_lines)
+        content = '\n'.join(processed_lines)
+
+        # Substitute emojis with LaTeX-compatible symbols
+        content = substitute_emojis(content)
+
+        # Normalize chart paths
+        content = content.replace('./reports/charts/', 'reports/charts/')
+
+        sections_dict[name] = content
 
     with open(temp_md, "w", encoding="utf-8") as f:
         f.write(f"""---
@@ -64,8 +73,23 @@ fontsize: 11pt
 header-includes:
   - \\usepackage{{fancyhdr}}
   - \\usepackage{{xcolor}}
+  - \\usepackage{{colortbl}}
+  - \\usepackage{{booktabs}}
+  - \\usepackage{{graphicx}}
+  - \\usepackage{{array}}
+  - \\usepackage{{titlesec}}
+  - \\usepackage{{parskip}}
+  - \\usepackage{{amssymb}}
   - \\definecolor{{darkgreen}}{{RGB}}{{0,100,0}}
   - \\definecolor{{darkred}}{{RGB}}{{139,0,0}}
+  - \\definecolor{{lightgray}}{{RGB}}{{245,245,245}}
+  - \\definecolor{{ForestGreen}}{{RGB}}{{34,139,34}}
+  - \\definecolor{{Orange}}{{RGB}}{{255,165,0}}
+  - \\definecolor{{Red}}{{RGB}}{{220,20,60}}
+  - \\rowcolors{{2}}{{lightgray!15}}{{white}}
+  - \\titlespacing*{{\\section}}{{0pt}}{{2ex plus 1ex minus .2ex}}{{1.5ex plus .2ex}}
+  - \\titlespacing*{{\\subsection}}{{0pt}}{{1.5ex plus 1ex minus .2ex}}{{1ex plus .2ex}}
+  - \\setlength{{\\parskip}}{{0.6em}}
   - \\pagestyle{{fancy}}
   - \\fancyhead[L]{{\\textbf{{INVESTMENT MEMO}}}}
   - \\fancyhead[R]{{{ticker}}}
@@ -160,6 +184,16 @@ header-includes:
 \\end{center}
 """)
 
+    # Determine resource path for images (charts directory)
+    output_dir = Path(output_path).parent
+    resource_paths = [
+        str(output_dir),
+        str(output_dir / "charts"),
+        "reports/charts",
+        ".",
+    ]
+    resource_path = ":".join(resource_paths)
+
     # Generate PDF
     cmd = [
         "pandoc", temp_md,
@@ -167,6 +201,7 @@ header-includes:
         "--pdf-engine=xelatex",
         "-V", "documentclass=article",
         "-V", "colorlinks=true",
+        f"--resource-path={resource_path}",
     ]
     subprocess.run(cmd, check=True)
 

@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .base import check_pdf_dependencies
+from .emoji_substitution import substitute_emojis
 
 
 def generate_equity_research_pdf(
@@ -40,7 +41,7 @@ def generate_equity_research_pdf(
     report_date = datetime.utcnow().strftime("%B %d, %Y")
 
     with open(temp_md, "w", encoding="utf-8") as f:
-        # Header with rating box style
+        # Header with enhanced styling for professional equity research look
         f.write(f"""---
 title: "{company_name}"
 subtitle: "Equity Research Report"
@@ -54,8 +55,22 @@ header-includes:
   - \\usepackage{{colortbl}}
   - \\usepackage{{booktabs}}
   - \\usepackage{{graphicx}}
+  - \\usepackage{{array}}
+  - \\usepackage{{tabularx}}
+  - \\usepackage{{float}}
+  - \\usepackage{{titlesec}}
+  - \\usepackage{{parskip}}
+  - \\usepackage{{amssymb}}
   - \\definecolor{{headerblue}}{{RGB}}{{0,51,102}}
   - \\definecolor{{lightgray}}{{RGB}}{{245,245,245}}
+  - \\definecolor{{ForestGreen}}{{RGB}}{{34,139,34}}
+  - \\definecolor{{Orange}}{{RGB}}{{255,165,0}}
+  - \\definecolor{{Red}}{{RGB}}{{220,20,60}}
+  - \\rowcolors{{2}}{{lightgray!15}}{{white}}
+  - \\titlespacing*{{\\section}}{{0pt}}{{2.5ex plus 1ex minus .2ex}}{{1.5ex plus .2ex}}
+  - \\titlespacing*{{\\subsection}}{{0pt}}{{1.5ex plus 1ex minus .2ex}}{{1ex plus .2ex}}
+  - \\titlespacing*{{\\subsubsection}}{{0pt}}{{1ex plus 0.5ex minus .2ex}}{{0.5ex plus .2ex}}
+  - \\setlength{{\\parskip}}{{0.6em}}
   - \\pagestyle{{fancy}}
   - \\fancyhead[L]{{\\textbf{{{ticker}}} | {company_name}}}
   - \\fancyhead[R]{{Equity Research}}
@@ -73,9 +88,12 @@ header-includes:
 
         # Write each section
         for i, task_output in enumerate(task_outputs):
-            name = section_names[i] if i < len(section_names) else f"Section {i+1}"
-            # Replace --- separators with *** to avoid YAML parsing issues in pandoc
+            raw_name = section_names[i] if i < len(section_names) else f"Section {i+1}"
+            # Clean section name of emojis
+            name = substitute_emojis(raw_name).strip()
             content = task_output.raw.strip()
+
+            # Replace --- separators with *** to avoid YAML parsing issues in pandoc
             lines = content.split('\n')
             processed_lines = []
             for line in lines:
@@ -84,6 +102,14 @@ header-includes:
                 else:
                     processed_lines.append(line)
             content = '\n'.join(processed_lines)
+
+            # Substitute emojis with LaTeX-compatible symbols
+            content = substitute_emojis(content)
+
+            # Normalize chart paths for pandoc resource resolution
+            # Keep full path since reports/charts is in resource-path
+            content = content.replace('./reports/charts/', 'reports/charts/')
+
             f.write(f"# {name}\n\n")
             f.write(content + "\n\n")
             f.write("\\newpage\n\n")

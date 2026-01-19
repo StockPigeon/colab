@@ -8,6 +8,7 @@ from datetime import datetime
 from .crew import InvestmentResearchCrew
 from .helpers import load_and_validate_env, clear_cache, get_cache_stats
 from .pdf import generate_equity_research_pdf, generate_hedge_fund_memo_pdf
+from .charts import generate_product_segment_chart, generate_geographic_segment_chart
 from .tools import (
     fmp_news_tool,
     investment_data_tool,
@@ -149,6 +150,56 @@ def run_agent(agent_name: str, ticker: str):
     print(f"\n[Cache] Hits: {stats['hits']}, Misses: {stats['misses']}, Hit Rate: {stats['hit_rate_pct']}%")
 
 
+def generate_revenue_charts(ticker: str, company_name: str) -> dict:
+    """
+    Generate revenue breakdown charts using business profile data.
+
+    Args:
+        ticker: Stock ticker symbol
+        company_name: Company name for chart titles
+
+    Returns:
+        Dictionary with paths to generated charts
+    """
+    charts = {"product_segments": None, "geographic_segments": None}
+
+    try:
+        # Fetch business profile data
+        profile_json = business_profile_tool._run(ticker)
+        profile_data = json.loads(profile_json)
+
+        # Generate product segment chart
+        product_segments = profile_data.get("product_segments", [])
+        if product_segments:
+            chart_path = generate_product_segment_chart(
+                symbol=ticker,
+                company_name=company_name,
+                product_segments=product_segments,
+                output_dir="reports/charts"
+            )
+            if chart_path:
+                charts["product_segments"] = chart_path
+                print(f"  Generated product segment chart: {chart_path}")
+
+        # Generate geographic segment chart
+        geo_segments = profile_data.get("geographic_segments", [])
+        if geo_segments:
+            chart_path = generate_geographic_segment_chart(
+                symbol=ticker,
+                company_name=company_name,
+                geo_segments=geo_segments,
+                output_dir="reports/charts"
+            )
+            if chart_path:
+                charts["geographic_segments"] = chart_path
+                print(f"  Generated geographic segment chart: {chart_path}")
+
+    except Exception as e:
+        print(f"  Warning: Could not generate revenue charts: {e}")
+
+    return charts
+
+
 def run_full_analysis(ticker: str, no_pdf: bool = False):
     """Run the full investment research analysis."""
     # Clear cache for fresh analysis
@@ -202,6 +253,10 @@ def run_full_analysis(ticker: str, no_pdf: bool = False):
             f.write(task_output.raw.strip() + "\n\n")
 
     print(f"Saved markdown to: {report_md}")
+
+    # Generate revenue breakdown charts
+    print("\nGenerating revenue breakdown charts...")
+    revenue_charts = generate_revenue_charts(ticker, company_name)
 
     if not no_pdf:
         # Generate Equity Research Style PDF
