@@ -79,32 +79,53 @@ def mark_complete(company_name: str = "", error: str = None):
         save_progress(data)
 
 
-def run_analysis(ticker: str):
-    """Run the full analysis with progress updates."""
+def run_analysis(ticker: str, use_parallel: bool = True):
+    """Run the full analysis with progress updates.
+
+    Args:
+        ticker: Stock ticker symbol
+        use_parallel: If True, use Red/Blue team parallel analysis (recommended)
+    """
     from dotenv import load_dotenv
     load_dotenv()
 
-    from investment_research.crew import InvestmentResearchCrew
     from investment_research.helpers import load_and_validate_env, clear_cache
-    from investment_research.pdf import (
-        generate_equity_research_pdf,
-        generate_hedge_fund_memo_pdf,
-    )
     from investment_research.main import generate_revenue_charts
 
     # Load environment
     load_and_validate_env()
     clear_cache()
 
-    # Create crew
-    crew_instance = InvestmentResearchCrew()
-    crew = crew_instance.crew()
+    if use_parallel:
+        # Use Red/Blue team parallel analysis
+        from investment_research.crew_parallel import ParallelInvestmentResearchCrew
+        from investment_research.pdf.unified_report import UnifiedReportGenerator
 
-    # Note: Task 0 is already marked as in_progress by research_runner.py
-    # Progress updates are now handled by CrewAI task callbacks in crew.py
+        # Create parallel crew
+        crew_instance = ParallelInvestmentResearchCrew()
 
-    # Run the crew
-    result = crew.kickoff(inputs={"ticker": ticker})
+        # Note: Task 0 is already marked as in_progress by research_runner.py
+        # Progress updates are now handled by CrewAI task callbacks in crew.py
+
+        # Run the crew (Red/Blue + CIO)
+        results = crew_instance.run_full_analysis(ticker)
+
+        # results contains: blue, red, cio
+        result = results['blue']  # For backward compatibility with company name extraction
+        cio_synthesis = results['cio']
+        red_output = results['red']
+        blue_output = results['blue']
+    else:
+        # Use standard sequential analysis
+        from investment_research.crew import InvestmentResearchCrew
+        crew_instance = InvestmentResearchCrew()
+        crew = crew_instance.crew()
+
+        # Run the crew
+        result = crew.kickoff(inputs={"ticker": ticker})
+        cio_synthesis = None
+        red_output = None
+        blue_output = None
 
     # Extract company name
     company_name = ticker
@@ -141,68 +162,123 @@ def run_analysis(ticker: str):
     except Exception:
         pass
 
-    # Generate PDFs
-    equity_pdf = f"{ticker}_equity_research.pdf"
-    memo_pdf = f"{ticker}_investment_memo.pdf"
+    # Generate report(s)
+    if use_parallel and cio_synthesis:
+        # Generate single unified report
+        from investment_research.pdf.unified_report import UnifiedReportGenerator
 
-    try:
-        generate_equity_research_pdf(
-            ticker=ticker,
-            company_name=company_name,
-            task_outputs=result.tasks_output,
-            section_names=SECTION_NAMES,
-            output_path=equity_pdf
-        )
-    except Exception:
-        pass
+        unified_pdf = f"{ticker}_Investment_Research_Report.pdf"
 
-    try:
-        generate_hedge_fund_memo_pdf(
-            ticker=ticker,
-            company_name=company_name,
-            task_outputs=result.tasks_output,
-            section_names=SECTION_NAMES,
-            output_path=memo_pdf
-        )
-    except Exception:
-        pass
-
-    # Upload reports to cloud storage (if configured)
-    try:
-        from streamlit_app.services.storage import get_storage_service
-        import glob
-
-        storage = get_storage_service()
-        if storage:
-            # Find chart files for this ticker
-            chart_files = [Path(p) for p in glob.glob(f"reports/charts/{ticker}*.png")]
-
-            storage.upload_report(
+        try:
+            report_gen = UnifiedReportGenerator()
+            report_gen.generate_report(
                 ticker=ticker,
                 company_name=company_name,
-                markdown_path=Path(report_md) if Path(report_md).exists() else None,
-                equity_pdf_path=Path(equity_pdf) if Path(equity_pdf).exists() else None,
-                memo_pdf_path=Path(memo_pdf) if Path(memo_pdf).exists() else None,
-                chart_paths=chart_files,
+                blue_output=blue_output,
+                red_output=red_output,
+                cio_synthesis=cio_synthesis,
+                output_path=unified_pdf
             )
-    except Exception as e:
-        # Cloud storage upload is optional - don't fail the analysis
-        print(f"Note: Could not upload to cloud storage: {e}")
+        except Exception as e:
+            print(f"Warning: Unified report generation failed: {e}")
+
+        # Upload unified report to cloud storage
+        try:
+            from streamlit_app.services.storage import get_storage_service
+            import glob
+
+            storage = get_storage_service()
+            if storage:
+                # Find chart files for this ticker
+                chart_files = [Path(p) for p in glob.glob(f"reports/charts/{ticker}*.png")]
+
+                # Upload unified report
+                storage.upload_report(
+                    ticker=ticker,
+                    company_name=company_name,
+                    markdown_path=Path(report_md) if Path(report_md).exists() else None,
+                    equity_pdf_path=Path(unified_pdf) if Path(unified_pdf).exists() else None,
+                    memo_pdf_path=None,  # No memo PDF in parallel mode
+                    chart_paths=chart_files,
+                )
+        except Exception as e:
+            # Cloud storage upload is optional - don't fail the analysis
+            print(f"Note: Could not upload to cloud storage: {e}")
+
+    else:
+        # Generate old-style reports for backward compatibility
+        from investment_research.pdf import (
+            generate_equity_research_pdf,
+            generate_hedge_fund_memo_pdf,
+        )
+
+        equity_pdf = f"{ticker}_equity_research.pdf"
+        memo_pdf = f"{ticker}_investment_memo.pdf"
+
+        try:
+            generate_equity_research_pdf(
+                ticker=ticker,
+                company_name=company_name,
+                task_outputs=result.tasks_output,
+                section_names=SECTION_NAMES,
+                output_path=equity_pdf
+            )
+        except Exception:
+            pass
+
+        try:
+            generate_hedge_fund_memo_pdf(
+                ticker=ticker,
+                company_name=company_name,
+                task_outputs=result.tasks_output,
+                section_names=SECTION_NAMES,
+                output_path=memo_pdf
+            )
+        except Exception:
+            pass
+
+        # Upload reports to cloud storage (if configured)
+        try:
+            from streamlit_app.services.storage import get_storage_service
+            import glob
+
+            storage = get_storage_service()
+            if storage:
+                # Find chart files for this ticker
+                chart_files = [Path(p) for p in glob.glob(f"reports/charts/{ticker}*.png")]
+
+                storage.upload_report(
+                    ticker=ticker,
+                    company_name=company_name,
+                    markdown_path=Path(report_md) if Path(report_md).exists() else None,
+                    equity_pdf_path=Path(equity_pdf) if Path(equity_pdf).exists() else None,
+                    memo_pdf_path=Path(memo_pdf) if Path(memo_pdf).exists() else None,
+                    chart_paths=chart_files,
+                )
+        except Exception as e:
+            # Cloud storage upload is optional - don't fail the analysis
+            print(f"Note: Could not upload to cloud storage: {e}")
 
     return company_name
 
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: run_analysis.py <TICKER>")
+        print("Usage: run_analysis.py <TICKER> [--sequential]")
         sys.exit(1)
 
     ticker = sys.argv[1].strip().upper()
 
+    # Check for --sequential flag
+    use_parallel = "--sequential" not in sys.argv
+
     try:
-        company_name = run_analysis(ticker)
+        print(f"Running {'Red/Blue Parallel' if use_parallel else 'Sequential'} analysis for {ticker}")
+        company_name = run_analysis(ticker, use_parallel=use_parallel)
         mark_complete(company_name=company_name)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         mark_complete(error=str(e))
         sys.exit(1)
 
