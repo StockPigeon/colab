@@ -6,8 +6,10 @@ import sys
 from datetime import datetime
 
 from .crew import InvestmentResearchCrew
+from .crew_parallel import ParallelInvestmentResearchCrew
 from .helpers import load_and_validate_env, clear_cache, get_cache_stats
 from .pdf import generate_equity_research_pdf, generate_hedge_fund_memo_pdf
+from .pdf.unified_report import UnifiedReportGenerator
 from .charts import generate_product_segment_chart, generate_geographic_segment_chart
 from .tools import (
     investment_data_tool,
@@ -290,6 +292,86 @@ def run_full_analysis(ticker: str, no_pdf: bool = False):
     return result
 
 
+def run_parallel_red_blue_analysis(ticker: str, no_pdf: bool = False):
+    """Run Red/Blue team parallel analysis with CIO synthesis."""
+    print(f"\n### Starting Red/Blue Team Parallel Analysis for {ticker} ###\n")
+    print("This will run TWO complete analyses simultaneously:")
+    print("  - BLUE TEAM (Optimistic/Bull Case)")
+    print("  - RED TEAM (Skeptical/Bear Case)")
+    print("Then synthesize with a CIO for independent recommendation.\n")
+
+    # Clear cache for fresh analysis
+    clear_cache()
+
+    # Initialize parallel crew
+    crew = ParallelInvestmentResearchCrew()
+
+    # Run Red/Blue analysis
+    results = crew.run_full_analysis(ticker)
+
+    print("\n\n" + "=" * 60)
+    print(f"ANALYSIS COMPLETE: {ticker}")
+    print("=" * 60 + "\n")
+
+    # Extract company name (try to get from one of the outputs)
+    company_name = ticker
+    if results['blue'] and hasattr(results['blue'], 'tasks_output'):
+        for task_output in results['blue'].tasks_output:
+            if 'Analysis:' in str(task_output.raw):
+                try:
+                    lines = str(task_output.raw).split('\n')
+                    for line in lines:
+                        if 'Analysis:' in line and '(' in line:
+                            name_part = line.split('Analysis:')[1].strip()
+                            if '(' in name_part:
+                                company_name = name_part.split('(')[0].strip()
+                                break
+                except Exception:
+                    pass
+            if company_name != ticker:
+                break
+
+    # Generate unified report
+    if not no_pdf:
+        print("\nGenerating unified investment research report...")
+        try:
+            report_gen = UnifiedReportGenerator()
+            pdf_path = report_gen.generate_report(
+                ticker=ticker,
+                company_name=company_name,
+                blue_output=results['blue'],
+                red_output=results['red'],
+                cio_synthesis=results['cio']
+            )
+            print(f"✅ Unified Report saved: {pdf_path}")
+        except Exception as e:
+            print(f"❌ Report generation failed: {e}")
+            import traceback
+            traceback.print_exc()
+
+    # Save outputs to JSON for debugging
+    debug_file = f"{ticker}_debug_outputs.json"
+    try:
+        with open(debug_file, "w", encoding="utf-8") as f:
+            json.dump({
+                "ticker": ticker,
+                "company_name": company_name,
+                "cio_synthesis": results['cio'],
+                "blue_sections": len(results['blue'].tasks_output) if hasattr(results['blue'], 'tasks_output') else 0,
+                "red_sections": len(results['red'].tasks_output) if hasattr(results['red'], 'tasks_output') else 0,
+                "timestamp": datetime.utcnow().isoformat()
+            }, f, indent=2)
+        print(f"✅ Debug outputs saved: {debug_file}")
+    except Exception as e:
+        print(f"⚠️  Could not save debug outputs: {e}")
+
+    # Print cache stats
+    stats = get_cache_stats()
+    print(f"\n[Cache] Hits: {stats['hits']}, Misses: {stats['misses']}, Hit Rate: {stats['hit_rate_pct']}%")
+
+    return results
+
+
 def main():
     """Main CLI entry point."""
     load_and_validate_env()
@@ -303,11 +385,14 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Full analysis
+  # Red/Blue team parallel analysis (RECOMMENDED - faster and less biased)
+  python -m investment_research.main --ticker AAPL --parallel
+
+  # Standard sequential analysis
   python -m investment_research.main --ticker AAPL
 
   # Skip PDF generation
-  python -m investment_research.main --ticker AAPL --no-pdf
+  python -m investment_research.main --ticker AAPL --parallel --no-pdf
 
   # Test individual tool
   python -m investment_research.main --tool investment_data --ticker AAPL
@@ -333,6 +418,7 @@ Available agents: phase_classifier, sentiment_analyst, strategist,
 
     parser.add_argument("--ticker", type=str, default=None, help="Ticker symbol (e.g., AAPL)")
     parser.add_argument("--no-pdf", action="store_true", help="Skip PDF generation")
+    parser.add_argument("--parallel", action="store_true", help="Use Red/Blue team parallel analysis (recommended)")
     parser.add_argument("--tool", type=str, help="Run a specific tool only")
     parser.add_argument("--task", type=str, help="Run a specific task only")
     parser.add_argument("--agent", type=str, help="Test a specific agent")
@@ -357,7 +443,12 @@ Available agents: phase_classifier, sentiment_analyst, strategist,
         run_task(args.task, ticker)
     elif args.agent:
         run_agent(args.agent, ticker)
+    elif args.parallel:
+        print("\n🚀 Using Red/Blue Team Parallel Analysis (Enhanced Mode)")
+        run_parallel_red_blue_analysis(ticker, args.no_pdf)
     else:
+        print("\n📊 Using Standard Sequential Analysis")
+        print("💡 Tip: Use --parallel for faster Red/Blue team analysis\n")
         run_full_analysis(ticker, args.no_pdf)
 
 
