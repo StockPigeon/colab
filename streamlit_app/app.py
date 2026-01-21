@@ -83,16 +83,23 @@ def render_sidebar():
         st.header("About")
         st.markdown("""
         This tool generates comprehensive investment research
-        using AI agents that analyze:
+        using a **Red/Blue Team** approach:
 
+        🔵 **Blue Team**: Optimistic analysis (Bull Case)
+        🔴 **Red Team**: Skeptical analysis (Bear Case)
+        💼 **CIO**: Independent synthesis & recommendation
+
+        **Analysis covers:**
         - Price trends & sentiment
         - Business model & phase
-        - Financial metrics
+        - Financial metrics & valuation
         - Competitive moat
-        - Management quality
-        - Valuation
+        - Management quality & risks
+        - Growth drivers
 
-        **Note:** Analysis takes 5-10 minutes.
+        ⚡ **Parallel execution** - Faster and less biased!
+
+        **Note:** Analysis takes 10-15 minutes.
         """)
 
         st.divider()

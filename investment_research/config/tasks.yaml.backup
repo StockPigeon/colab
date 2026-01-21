@@ -1,0 +1,1270 @@
+task_price_sentiment:
+  description: |
+    You are analyzing {ticker} for the past year.
+
+    You MUST:
+    1) Call price_sentiment_data_tool({ticker}) for price stats and dates.
+    2) Use the search tool to gather catalysts + sentiment signals across the same period:
+    - earnings reactions, analyst actions, major product launches, macro/regulatory headlines
+    - analyst targets/ratings (link sources)
+    - investor positioning/flows ONLY if verifiable; otherwise explicitly say "Limited public data found."
+    - media tone from reputable outlets (link sources)
+    3) OPTIONAL (if X_BEARER_TOKEN exists): call x_recent_posts_tool with a query like:
+    '({ticker} OR ${ticker}) (stock OR earnings OR guidance) -is:retweet lang:en'
+    If not available, do NOT guess social sentiment; state "Limited social data available."
+
+    Output rules:
+    - Never speculate. Never hype.
+    - No fake links. Every claim must be backed by a link in the bullet where it appears.
+    - Use bullet points only in bull/bear sections.
+    - Always include at least 2 bull + 2 bear points; if not enough coverage, write "Limited recent coverage" and explain briefly.
+
+    OUTPUT ONLY THE TEMPLATE BELOW (fill all fields you can, and leave unknowns as "N/A" without guessing):
+
+    📊 Price & Sentiment Analysis: [Company Name] ([Ticker])
+    Using price data from [Start Date] – [End Date] and news from the same period
+
+    🧠 1) Overall Takeaway
+    * Why It Moved: [2 sentences linking cause → effect → impact]
+    * Next Catalyst: [Upcoming event / earnings date / major launch]
+    * Outlook (12M): 🟢 Bullish / 🟡 Neutral / 🔴 Bearish — [Plain-English summary referencing bull/bear case]
+
+    🧭 2) Sentiment Snapshot
+    | Perspective | Tone | Confidence |
+    | :--- | :--- | :--- |
+    | **Analyst** | 🟢 Bullish / 🟡 Neutral / 🔴 Bearish | High / Med / Low |
+    | **Investor** | 🟢 Bullish / 🟡 Neutral / 🔴 Bearish | High / Med / Low |
+    | **Media** | 🟢 Positive / 🟡 Mixed / 🔴 Negative | — |
+
+    Tone Summary (12 Months): [1-sentence evolution of mood]
+    Key Signals:
+    * [Signal] → [Brief summary + link]
+    * [Signal] → [Brief summary + link]
+
+    🐂 3) What the Bulls Say
+    * [Reason 1 + link]
+    * [Reason 2 + link]
+    * [Reason 3 + link (or "Limited recent coverage.")]
+
+    🐻 4) What the Bears Say
+    * [Reason 1 + link]
+    * [Reason 2 + link]
+    * [Reason 3 + link (or "Limited recent coverage.")]
+
+    📈 5) 1-Year Price Overview
+    | Metric | Value |
+    | :--- | :--- |
+    | **1-Year Change** | +X% / -X% |
+    | **52-Week Range** | $LOW – $HIGH |
+    | **Current Price** | $XXX |
+    | **vs 200-Day MA** | Above / Below / At |
+    | **vs S&P 500** | Outperform / Underperform by X pp |
+
+    Price Context: [Short reason for current level]
+
+    📚 6) Sources & Links
+    1. [Source name] — URL
+    2. [Source name] — URL
+    3. [Source name] — URL
+    4. [Source name] — URL
+
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = Bullish outlook with strong positive sentiment across analysts/investors/media
+    - 4 = Leaning bullish with mostly positive signals
+    - 3 = Neutral/mixed outlook
+    - 2 = Leaning bearish with some concerns
+    - 1 = Bearish outlook with negative sentiment
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The primary driver of this score - e.g., "Strong earnings beat drove bullish sentiment"]
+    ---
+
+    STOP HERE - DO NOT ADD ANY ADDITIONAL SECTIONS
+  expected_output: ONLY the filled template with section score block.
+  agent: sentiment_analyst
+
+task_business_phase:
+  description: |
+    You MUST follow this exact process for {ticker}:
+    1) Use investment_data_tool to get company_name, business_phase_inputs, and business_phase_classification.
+    2) Use the most recent SEC filing link in business_phase_inputs.latest_sec_url as the source.
+    If the URL is missing, use any 10-Q/10-K link from sec_links.
+    3) Apply the phase decision exactly as provided by business_phase_classification (do not invent a different phase).
+    4) OUTPUT ONLY the template below and NOTHING else. No preamble. No commentary.
+
+    PHASE DEFINITIONS & VALUATION METHODS (use ONLY the ones for the chosen phase):
+
+    Phase 1: STARTUP
+    - Valuation Methods: Forward Price to Sales, Total Addressable Market (TAM)
+    - Why These Fit: Company is pre-profit with expanding losses. Valuation relies on future revenue potential and market opportunity size.
+    - Avoid: P/E ratios, DCF models, any earnings-based methods
+
+    Phase 2: HYPERGROWTH
+    - Valuation Methods: Forward Price to Sales, Price to Gross Profit
+    - Why These Fit: Company shows improving unit economics with shrinking losses. Valuation focuses on revenue trajectory and gross profit margins.
+    - Avoid: P/E ratios, DCF models
+
+    Phase 3: SELF FUNDING
+    - Valuation Methods: Price to Sales, Price to Gross Profit
+    - Why These Fit: Company is near breakeven, validating its business model. Current revenue and gross profit provide reliable valuation anchors.
+    - Avoid: Forward/Trailing P/E, Reverse DCF
+
+    Phase 4: OPERATING LEVERAGE
+    - Valuation Methods: Forward Price to Earnings, Forward Price to Free Cash Flow
+    - Why These Fit: Company demonstrates scalable profitability. Forward earnings and cash flow reflect the trajectory.
+    - Avoid: Dividend yield models
+
+    Phase 5: CAPITAL RETURN
+    - Valuation Methods: Trailing Price to Earnings, Trailing Price to Free Cash Flow, Reverse DCF
+    - Why These Fit: Company is mature with stable operations and capital returns. Current earnings and cash generation drive valuation.
+    - Avoid: High growth multiples, forward P/S
+
+    Phase 6: DECLINE
+    - Valuation Methods: Price to Book, Liquidation Value, Asset-Based Valuation
+    - Why These Fit: Traditional growth valuation methods are unreliable for declining businesses due to deteriorating fundamentals.
+    - Avoid: Growth multiples, forward earnings, DCF
+
+
+    OUTPUT TEMPLATE - ONLY OUTPUT WHAT'S BELOW THIS LINE
+
+    # 📊 Business Phase Analysis: [Company Name]
+
+    | Category | Value |
+    | :--- | :--- |
+    | **Current Stage** | [Emoji] Phase [#]: [Name] |
+    | **Stage Confidence Level** | ✅ High / ⚠️ Medium / ❌ Low |
+    | **Evidence** | • Operating Income: $[X]M ([improving/worsening/positive/negative]) <br> • Revenue Growth: [X]% <br> • Capital Returns: [Yes/No with specifics] |
+    | **Most Useful Valuation Method(s)** | [List from approved methods for this phase only] |
+    | **Why These Methods Fit** | [Use exact pre-approved rationale for this phase] |
+    | **Methods to Avoid** | [List other common valuation methods not approved for this phase] |
+
+    ## 💡 Here's what this means for investors:
+    ↓
+    - **What they're doing:** [Simple explanation of company's focus at this stage]
+    - **Why it matters:** [What this tells us about the company's health]
+    - **How to value it:** Focus on [key metrics for this phase] using methods like [primary valuation method]
+    - **What to watch:** [Key indicator for this phase]
+
+    ## 🔗 Sources
+    - [[Company] latest filing]([SEC URL])
+    - Business Growth Cycle Visual
+
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = High confidence phase classification with clear evidence
+    - 4 = Good confidence with supporting metrics
+    - 3 = Medium confidence, some ambiguity in classification
+    - 2 = Low confidence, limited evidence
+    - 1 = Very low confidence, unclear phase
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The primary evidence supporting this phase classification]
+    ---
+
+    STOP HERE - DO NOT ADD ANY ADDITIONAL SECTIONS
+  expected_output: ONLY the filled template with section score block.
+  agent: phase_classifier
+
+task_key_metrics:
+  description: |
+    Collect and evaluate key financial metrics for {ticker} based on its business phase.
+
+    You MUST:
+    1) Call key_metrics_tool({ticker}) to get phase-appropriate metrics with scores.
+    2) Review the scores and identify any concerning patterns (multiple 🔴 indicators).
+    3) Highlight the strongest metrics (🟢) and areas of concern (🔴).
+    4) Write 2-3 sentences summarizing the overall financial health picture.
+    5) Write in plain English—a smart 8th-grader should understand every answer.
+
+    METRIC SCORING:
+    - 🟢 Good = Metric meets or exceeds threshold for healthy companies at this phase
+    - 🟡 Neutral = Metric is acceptable but not standout
+    - 🔴 Bad = Metric is below threshold and warrants attention
+
+    The tool automatically selects the RIGHT metrics for each business phase:
+    - Phase 1 (Startup): Revenue, Gross Margin, Cash Runway, Revenue vs Estimate, Share Dilution
+    - Phase 2 (Hypergrowth): Revenue CAGR, Gross Margin Direction, Cash Runway, Revenue vs Estimate, Share Dilution
+    - Phase 3 (Self Funding): Revenue CAGR, Gross Margin Direction, Operating Margin, FCF, Share Dilution
+    - Phase 4 (Operating Leverage): Revenue CAGR, Operating Margin, FCF Margin, EPS vs Estimate, ROIC
+    - Phase 5 (Capital Return): Revenue CAGR, FCF/Net Income, Interest Coverage, ROIC, Capital Return Yield
+    - Phase 6 (Decline): No metrics tracked
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 📊 Key Metrics Scorecard: [Company Name] ([Ticker])
+
+    **Business Phase:** [Phase emoji] Phase [#]: [Phase Name]
+
+    ## Metrics Summary
+
+    | Category | Metric | Value | Score |
+    | :--- | :--- | ---: | :---: |
+    | Revenue | [Metric Name] | [Value] | 🟢/🟡/🔴 |
+    | Profitability | [Metric Name] | [Value] | 🟢/🟡/🔴 |
+    | Cash / Balance Sheet | [Metric Name] | [Value] | 🟢/🟡/🔴 |
+    | vs Expectations | [Metric Name] | [Value] | 🟢/🟡/🔴 |
+    | Capital Efficiency | [Metric Name] | [Value] | 🟢/🟡/🔴 |
+
+    ## Assessment
+
+    **Overall Score:** [X/5] 🟢
+
+    **Strengths:**
+    - [Strongest metric]: [Why this is impressive in 1 sentence]
+
+    **Concerns:**
+    - [Weakest metric]: [Why this matters in 1 sentence]
+
+    **Summary:**
+    [2-3 sentence plain-English narrative on financial health relative to this business phase]
+
+    ---
+    ### Section Score
+    **Score:** [X/5] (same as Overall Score above)
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The most significant metric driving this score]
+    ---
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS
+  expected_output: Key metrics scorecard with scores and section score block.
+  agent: quant_auditor
+  context:
+    - task_business_phase
+
+task_business_profile:
+  description: |
+    You are completing a Business Analysis Table for {ticker}.
+
+    You MUST:
+    1) Call business_profile_tool({ticker}) to get company profile, product segments, geographic segments, margin data, and classification hints.
+    2) Use the company description, product segments, geographic segments, and financial metrics from the tool output to answer the questions.
+    3) Answer ALL 7 questions in the template below.
+    4) Write in plain English—a smart 8th-grader should understand every answer. Avoid jargon.
+    5) Every claim must cite a source. Prioritize the company's own 10-K/10-Q wording.
+
+    CLASSIFICATION RULES:
+
+    **Purchase Frequency** (choose ONE):
+    - "Every Few Years" = Durable goods (cars, appliances, furniture), major capital purchases, real estate
+    - "Yearly" = Apparel, electronics accessories, annual subscriptions, B2B contracts renewed annually
+    - "Recurring" = Monthly/quarterly subscriptions, consumables, utilities, SaaS, insurance premiums
+
+    **Pricing Power** (choose ONE):
+    - "Price taker" = Commodity business, no differentiation, gross margins typically <25%
+    - "Would lose customers" = Competitive market with some differentiation, gross margins 25-45%
+    - "Can increase prices" = Strong brand/moat, high switching costs, gross margins typically >45%, demonstrated history of price increases
+
+    **Recession Sensitivity** (choose ONE):
+    - "Highly Cyclical" = Discretionary spending (luxury, travel, autos), revenue drops significantly in recessions
+    - "Normal" = Moderate sensitivity, some demand elasticity but not extreme
+    - "Recession-Proof" = Essential goods/services (healthcare, utilities, staples), demand stable regardless of economy
+
+    Use the classification_hints from the tool as guidance, but verify with actual data.
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 📋 Business Profile Analysis: [Company Name] ([Ticker])
+
+    ## Business Model Overview
+
+    | Question | Answer |
+    | :--- | :--- |
+    | **How does the company make money?** | [List revenue streams from most to least important with % breakdown. 2-3 sentences max.] |
+    | **What are its key products/services?** | [Bullet list of main products/services with approximate revenue contribution if available] |
+    | **Who are its customers?** | [Customer types: individuals, SMBs, enterprises, governments. Include specific industries served.] |
+    | **Where does the company operate?** | [Key geographies with % breakdown, e.g., "US (60%), Europe (25%), Asia (15%)"] |
+
+    ## Business Characteristics
+
+    | Characteristic | Classification | Rationale |
+    | :--- | :--- | :--- |
+    | **Purchase Frequency** | Every Few Years / Yearly / Recurring | [1 sentence explanation based on product type and customer behavior] |
+    | **Pricing Power** | Price taker / Would lose customers / Can increase prices | [Cite gross margin %, pricing commentary from earnings, or risk factors] |
+    | **Recession Sensitivity** | Highly Cyclical / Normal / Recession-Proof | [Based on sector and demand elasticity, with historical evidence if available] |
+
+    ## Key Metrics Supporting Classification
+    - Gross Margin: [X]%
+    - Sector: [Sector name]
+    - Industry: [Industry name]
+
+    ## 🔗 Sources
+    - [1] [Source name and what data it provided]
+    - [2] [Source name and what data it provided]
+    - [Continue for all sources used]
+
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = Recurring revenue + Can increase prices + Recession-proof
+    - 4 = Two favorable characteristics
+    - 3 = Mixed characteristics (one favorable, one unfavorable)
+    - 2 = Two unfavorable characteristics
+    - 1 = Infrequent purchases + Price taker + Highly cyclical
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The most favorable or concerning business characteristic]
+    ---
+
+    STOP HERE - DO NOT ADD ANY ADDITIONAL SECTIONS
+  expected_output: ONLY the filled Business Profile template with section score block.
+  agent: business_profile_analyst
+  context:
+    - task_business_phase
+
+task_business_moat:
+  description: |
+    You are now executing a moat analysis protocol.
+    Follow each instruction precisely and in order.
+
+    Your Mission
+
+    for company {ticker}
+
+    Retrieve current financial data and Morningstar analysis
+
+    Evaluate all five moat sources with evidence
+
+    Classify moat size and direction using STRICT CRITERIA
+
+    Output a clean Markdown report (DO NOT wrap in code blocks)
+
+    🛡️ Moat Size Definitions
+    Wide Moat (20+ years durability)
+
+    Network Effects: Each new user materially increases value for others; difficult to replicate at scale
+
+    Switching Costs: Customers are effectively locked in; switching risks revenue loss or operational disruption
+
+    Intangible Assets: Brand provides significant pricing power; exclusive licenses or patents
+
+    Low-Cost Production: Lowest cost structure competitors struggle to match
+
+    Counter-Positioning: Incumbents cannot copy the model without self-harm
+
+    Narrow Moat (3–10 years durability)
+
+    Network Effects: Loyal users but not locked in; niche network
+
+    Switching Costs: Some friction; customers stay due to habit or convenience
+
+    Intangible Assets: Some brand loyalty but price-sensitive customers
+
+    Low-Cost Production: Partial cost advantage, often regionally limited
+
+    Counter-Positioning: Challenges incumbents, but incumbents can fight back
+
+    No Moat (No durable advantage)
+
+    Network Effects: No benefit when users join; small network
+
+    Switching Costs: Customers leave easily; low attachment
+
+    Intangible Assets: Undifferentiated brand with many substitutes
+
+    Low-Cost Production: Higher costs than peers
+
+    Counter-Positioning: Same business model as competitors
+
+    📈 Moat Direction
+
+    Widening: Rising engagement, margin expansion, brand strengthening
+
+    Stable: Flat growth/margins; high retention but no new advantages
+
+    Narrowing: Falling margins, declining engagement, eroding differentiation
+
+    ⚠️ Critical Note on Counter-Positioning
+
+    Counter-positioning exists only when incumbents are structurally unable to copy the business model without damaging their existing economics
+    (e.g., Netflix streaming vs Blockbuster stores).
+
+    Being innovative or different does not qualify.
+
+    🧭 Step 4: Classification Rules
+
+    Apply criteria mechanically:
+
+    Document each moat type as Present / Not Present
+
+    If present, classify as Wide / Narrow
+
+    Determine direction: Widening / Stable / Narrowing
+
+    Identify 1–2 primary moat sources
+
+    🧾 Step 5: Output Template
+    🏰 Moat Analysis: [Company Name] ([Ticker])
+
+    Moat Size: None ❌ / Narrow 🥈 / Wide 🛡️
+    Moat Direction: Widening ↗️ / Stable ➡️ / Narrowing ↘️
+
+    Primary Moat Source(s):
+
+    [Emoji] Moat Type
+
+    [Emoji] Moat Type
+
+    Summary:
+    1–2 sentence narrative summarizing the overall moat thesis, supported by a key metric with citation.
+
+    ⚓ Switching Costs
+
+    Assessment: ✅ Present / ❌ Not Present
+
+    Analysis:
+    Detailed explanation of switching cost dynamics.
+
+    Supporting Data:
+
+    Metric 1: (e.g., Net Dollar Retention: ___%)
+
+    Metric 2: (e.g., Remaining Performance Obligations: $___B, ___% YoY)
+
+    Evidence Quote: Platform stickiness, integration depth, or exit-cost commentary
+
+    💡 Intangible Assets
+
+    Assessment: ✅ Present / ❌ Not Present
+
+    Analysis:
+    Brand strength, patents, licenses, or regulatory advantages.
+
+    Supporting Data:
+
+    Metric 1: (e.g., Commercial Revenue Growth: ___% YoY)
+
+    Metric 2: (e.g., R&D Investment as % of Revenue)
+
+    Evidence Quote: Brand value, IP protection, or regulatory moat evidence
+
+    🌐 Network Effects
+
+    Assessment: ✅ Present / ❌ Not Present
+
+    Analysis:
+    How new users increase value for existing users.
+
+    Supporting Data:
+
+    Metric 1: (e.g., Customer Growth: ___% YoY)
+
+    Metric 2: (e.g., Engagement / usage metric)
+
+    Evidence Quote: Flywheel or network reinforcement description
+
+    ⚙️ Low-Cost Production
+
+    Assessment: ✅ Present / ❌ Not Present
+
+    Analysis:
+    Operational efficiency, scale advantages, or cost leadership.
+
+    Supporting Data:
+
+    Metric 1: (e.g., Gross Margin: ___%)
+
+    Metric 2: (e.g., Operating Margin vs. Peers)
+
+    Evidence Quote: Cost structure or scale efficiency evidence
+
+    ♟️ Counter-Positioning
+
+    Assessment: ✅ Present / ❌ Not Present
+
+    Analysis:
+    Why incumbents cannot replicate the model without self-harm.
+
+    Supporting Data:
+
+    Metric 1: (e.g., Commercial Customer Count: ___+)
+
+    Metric 2: (e.g., Market Share Gain vs Incumbents)
+
+    Evidence Quote: Structural incumbent disadvantage explanation
+
+    ⚠️ Risks & Final Considerations
+
+    Primary Risk:
+    Most significant threat to the company's moat, supported by a cited data point.
+
+    Competitive Landscape:
+    Key competitors and threats, with cited evidence.
+
+    Valuation Risk:
+    Key valuation metric vs peers, with citation.
+
+    Morningstar View Comparison:
+
+    Morningstar's Rating: Official moat size, direction, and rationale (with citation)
+
+    Analysis: 1–2 sentence comparison between your first-principles view and Morningstar's; note whether you confirm, challenge, or add nuance
+
+    🔗 Sources
+
+    List each source numerically:
+
+    Source Name – domain.com
+
+    Source Name – domain.com
+
+    Source Name – domain.com
+
+    Source Name – domain.com
+
+    Source Name – domain.com
+
+    (Continue with all sources used.)
+
+    🧠 Behavioral Guardrails
+
+    No Self-Reference: Do not use this prompt as an analysis source
+
+    Citation Discipline: Every data point must have a source
+
+    Evidence Standard: Minimum 2 metrics + 1 quote per moat type
+
+    Primary Sources Only: Prioritize 10-K, 10-Q, official transcripts
+
+    Assume No Moat: Default position is no moat until proven otherwise
+
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = Wide moat + Widening direction
+    - 4 = Wide moat + Stable OR Narrow moat + Widening
+    - 3 = Narrow moat + Stable
+    - 2 = Narrow moat + Narrowing OR No moat with some advantages
+    - 1 = No moat
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The primary moat source or lack thereof]
+    ---
+
+    STOP HERE - DO NOT ADD ANY ADDITIONAL SECTIONS
+  expected_output: Qualitative moat report with section score block.
+  agent: strategist
+  context:
+    - task_business_phase
+
+task_execution_risk:
+  description: |
+    You are evaluating Execution Risk for {ticker} using a 4-factor framework.
+
+    You MUST:
+    1) Use governance_data_tool({ticker}) to get SEC filing links and earnings transcript.
+    2) Use web_search_tool({ticker}:recent news) to get recent news and press releases.
+    3) Use ScrapeWebsiteTool to extract relevant sections from the company's latest 10-K:
+       - "Major Customers" or "Customer Concentration" section
+       - "Risk Factors" section (Item 1A)
+    4) Evaluate each of the 4 risk factors below and assign a color score.
+    5) Write in plain English—a smart 8th-grader should understand every answer.
+
+    RISK FACTOR FRAMEWORK:
+
+    **1. CONCENTRATION RISK** (Customer Dependence)
+    - 🔴 Red: A few customers each >20% of revenue, OR top 3 customers >50% combined
+    - 🟡 Yellow: Single customer 10-15% of revenue, otherwise diversified
+    - 🟢 Green: No customer >10% of revenue, OR millions of individual customers (B2C model)
+
+    Look for: 10-K "Major Customers" section. SEC requires disclosure if any customer >10%.
+
+    **2. DISRUPTION RISK** (Threat of Obsolescence)
+    - 🔴 Red: Identifiable disruption threat (new technology, business model shift, aggressive competitor)
+    - 🟡 Yellow: Normal competitive environment, no specific disruptive threat
+    - 🟢 Green: Company IS the disruptor (first-mover, high R&D, expanding the market)
+
+    Look for: 10-K risk factors mentioning technology or market shifts, news about industry disruption.
+
+    **3. OUTSIDE FORCES** (Regulatory/Political/Macro Risk)
+    - 🔴 Red: High exposure (pending legislation, geopolitical risk, heavy regulation)
+    - 🟡 Yellow: Normal regulatory environment for the industry
+    - 🟢 Green: Minimal outside forces, business model resilient to macro shocks
+
+    Look for: 10-K regulatory risk sections, news about pending legislation, geographic concentration.
+
+    **4. COMPETITION** (Pricing Pressure vs. Market Power)
+    - 🔴 Red: Pricing pressure (declining margins, price wars, many competitors)
+    - 🟡 Yellow: Normal competition (stable margins, typical competitive environment)
+    - 🟢 Green: Monopoly/Duopoly (high gross margins >50%, market leader, few competitors)
+
+    Look for: Gross margin trends from financial data, competitor mentions in transcript/news.
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # ⚠️ Execution Risk Assessment: [Company Name] ([Ticker])
+
+    ## Risk Scorecard
+
+    | Risk Factor | Score | Assessment |
+    | :--- | :---: | :--- |
+    | **Concentration** | 🔴/🟡/🟢 | [1-sentence summary with key data point] |
+    | **Disruption** | 🔴/🟡/🟢 | [1-sentence summary with key evidence] |
+    | **Outside Forces** | 🔴/🟡/🟢 | [1-sentence summary with key risk or lack thereof] |
+    | **Competition** | 🔴/🟡/🟢 | [1-sentence summary with margin or market position evidence] |
+
+    ## Detailed Analysis
+
+    ### 🎯 Concentration Risk: [🔴/🟡/🟢]
+    - **Finding:** [What customer concentration looks like]
+    - **Evidence:** [Quote from 10-K or specific data point]
+    - **Implication:** [What this means for investors]
+
+    ### 💥 Disruption Risk: [🔴/🟡/🟢]
+    - **Finding:** [Is company being disrupted or is the disruptor?]
+    - **Evidence:** [Specific threat or advantage identified]
+    - **Implication:** [What this means for the business model]
+
+    ### 🌍 Outside Forces: [🔴/🟡/🟢]
+    - **Finding:** [Level of regulatory/political/macro exposure]
+    - **Evidence:** [Specific regulation, geography, or macro factor]
+    - **Implication:** [What this means for predictability]
+
+    ### ⚔️ Competition: [🔴/🟡/🟢]
+    - **Finding:** [Market position and pricing power]
+    - **Evidence:** [Gross margin trend, competitor landscape]
+    - **Implication:** [What this means for profitability]
+
+    ## Overall Execution Risk
+
+    **Risk Score:** [X/4] 🟢 | [Y/4] 🟡 | [Z/4] 🔴
+
+    **Summary:** [2-3 sentences on overall execution risk profile and key concern if any]
+
+    ## 🔗 Sources
+    - [1] [Source and what data it provided]
+    - [2] [Source and what data it provided]
+
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = All 4 factors green (minimal execution risk)
+    - 4 = 3 green, 1 yellow
+    - 3 = 2 green, 2 yellow OR mixed
+    - 2 = 1+ red factors
+    - 1 = Multiple red factors (high execution risk)
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The most significant risk or strength identified]
+    ---
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS
+  expected_output: Execution risk assessment with section score block.
+  agent: governance_expert
+  context:
+    - task_business_phase
+    - task_business_moat
+
+task_growth_drivers:
+  description: |
+    You are executing a Growth Drivers Analysis for {ticker}.
+
+    You MUST:
+    1) Call investment_data_tool({ticker}) to get financial data, earnings transcript, and SEC filing links.
+    2) Review the moat analysis from context to understand competitive position.
+    3) Evaluate all 7 growth drivers using the 2×4 framework below.
+    4) Write in plain English—a smart 8th-grader should understand every answer.
+    5) Every claim must cite a source with specific metrics where available.
+
+    GROWTH DRIVER FRAMEWORK (2×4):
+
+    **NEW CUSTOMER ACQUISITION** (4 drivers):
+    - Marketing & Sales Investment: Sales expense trends, go-to-market expansion
+    - New Distribution Channels: DTC launches, retail partnerships, platform additions
+    - Geographic/Market Expansion: International entry, new verticals, TAM expansion
+    - Acquisitions: M&A activity, customer base additions, capability acquisitions
+
+    **EXISTING CUSTOMER EXPANSION** (3 drivers):
+    - Pricing Power: ASP trends, gross margin expansion, price increase history
+    - New Products/Services: Product launches, attach rates, cross-sell/upsell
+    - Customer Retention: Net retention rate, churn trends, contract renewals
+
+    STRENGTH INDICATORS (choose ONE per driver):
+    - 🟢 Strong = Clear evidence with metrics, major investment/focus area
+    - 🟡 Moderate = Some evidence, mentioned but not primary focus
+    - 🔴 Weak = Limited or no evidence of this growth lever
+    - ⚫ N/A = Not applicable to this business model
+
+    CRITICAL: Only evaluate these 7 drivers. Do NOT add additional categories.
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 🚀 Growth Drivers Analysis: [Company Name] ([Ticker])
+
+    ## 📊 Executive Summary
+
+    | Attribute | Assessment |
+    | :--- | :--- |
+    | **Primary Growth Strategy** | New Customers / Existing Customers / Balanced |
+    | **Top 2-3 Drivers** | [List strongest drivers] |
+    | **Phase Alignment** | [How growth strategy fits current business phase] |
+
+    ## 🧲 New Customer Acquisition
+
+    ### 📣 Marketing & Sales Investment
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [Specific metric, e.g., "Sales expense up 23% YoY to $2.3B"]
+    - **Trend:** ↗ Increasing / → Stable / ↘ Decreasing
+
+    ### 🌐 New Distribution Channels
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [e.g., "Launched DTC platform, added 500 retail partners"]
+    - **Trend:** ↗/→/↘
+
+    ### 🌍 Geographic/Market Expansion
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [e.g., "Entered 3 new European markets, international revenue +45%"]
+    - **Trend:** ↗/→/↘
+
+    ### 🤝 Acquisitions
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [e.g., "Acquired 2 companies for $1.2B, adding 2M customers"]
+    - **Trend:** ↗/→/↘
+
+    ## 💰 Existing Customer Expansion
+
+    ### 🏷 Pricing Power
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [e.g., "ASP increased 8%, gross margins expanded 200bps"]
+    - **Trend:** ↗/→/↘
+
+    ### 🧩 New Products/Services
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [e.g., "Launched 5 add-on services, attach rate now 35%"]
+    - **Trend:** ↗/→/↘
+
+    ### 🔁 Customer Retention
+    - **Strength:** 🟢/🟡/🔴/⚫
+    - **Evidence:** [e.g., "Net retention 115%, churn decreased to 5%"]
+    - **Trend:** ↗/→/↘
+
+    ## 🧠 Strategic Assessment
+
+    ### Primary Drivers (Strongest)
+    1. **[Driver Name]**
+       - Why primary: [Brief explanation]
+       - Key metric: [Most important data point]
+
+    2. **[Driver Name]**
+       - Why primary: [Brief explanation]
+       - Key metric: [Most important data point]
+
+    ### Secondary Drivers (Moderate)
+    - **[Driver]:** [One-line explanation]
+    - **[Driver]:** [One-line explanation]
+
+    ### Untapped Opportunities
+    - **[Driver]:** [Why company isn't fully leveraging this + potential]
+
+    ## 🧮 Growth Driver Matrix
+
+    | Driver | Strength | Evidence Quality | Trend |
+    | :--- | :---: | :---: | :---: |
+    | Marketing & Sales | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+    | New Distribution | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+    | Market Expansion | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+    | Acquisitions | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+    | Pricing Power | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+    | New Products | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+    | Retention | 🟢/🟡/🔴/⚫ | Strong/Moderate/Weak | ↗/→/↘ |
+
+    ## 🔗 Sources
+    - [1] [Source name and what data it provided]
+    - [2] [Source name and what data it provided]
+    - [Continue for all sources used]
+
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = Multiple strong growth drivers (3+ green) with positive trends
+    - 4 = 2+ strong drivers with mostly positive trends
+    - 3 = Mixed drivers, some moderate, no clear red flags
+    - 2 = Few growth drivers, mostly weak or declining trends
+    - 1 = No clear growth drivers, negative trends
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The strongest or weakest growth driver shaping outlook]
+    ---
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS OR DRIVERS
+  expected_output: ONLY the filled Growth Drivers Analysis template with section score block.
+  agent: strategist
+  context:
+    - task_business_phase
+    - task_business_moat
+
+task_management_risk:
+  description: |
+    You are evaluating Management Quality & Alignment for {ticker}.
+
+    You MUST:
+    1) Use sec_filings_tool to get the DEF 14A (proxy statement) for executive compensation details.
+    2) Use governance_data_tool({ticker}) to get SEC filing links and earnings transcript.
+    3) Use the search tool to find recent news about management changes, controversies, or governance issues.
+    4) Evaluate each of the 5 alignment factors below and assign a color score.
+    5) Write in plain English—a smart 8th-grader should understand every answer.
+
+    MANAGEMENT ALIGNMENT FRAMEWORK:
+
+    **1. INSIDER OWNERSHIP** (Skin in the Game)
+    - 🟢 Green: CEO/founders own >5% of shares, or significant $ value (>$50M)
+    - 🟡 Yellow: Moderate ownership 1-5%, meaningful but not substantial
+    - 🔴 Red: Minimal ownership <1%, executives primarily compensated via salary
+
+    Look for: Proxy statement beneficial ownership table, insider transaction filings.
+
+    **2. COMPENSATION STRUCTURE** (Incentive Alignment)
+    - 🟢 Green: Performance-based comp tied to long-term metrics (FCF, ROIC, TSR), multi-year vesting
+    - 🟡 Yellow: Mixed metrics, some tied to revenue/earnings with 3-year vesting
+    - 🔴 Red: Comp tied to short-term metrics, easy targets, or primarily time-based vesting
+
+    Look for: Proxy statement executive compensation section, performance metrics.
+
+    **3. CAPITAL ALLOCATION** (Shareholder-Friendly)
+    - 🟢 Green: Clear buyback/dividend policy, executes opportunistically, avoids dilution
+    - 🟡 Yellow: Moderate capital returns, some dilution offset by buybacks
+    - 🔴 Red: Excessive dilution, no capital returns, questionable M&A
+
+    Look for: Share count trends, buyback programs, dividend history, M&A track record.
+
+    **4. COMMUNICATION QUALITY** (Candor & Transparency)
+    - 🟢 Green: Clear guidance, acknowledges mistakes, avoids buzzwords, consistent messaging
+    - 🟡 Yellow: Typical corporate speak, generally reliable guidance
+    - 🔴 Red: Frequent guidance misses, evasive answers, promotional language
+
+    Look for: Earnings transcript tone, guidance accuracy history, analyst relations.
+
+    **5. TRACK RECORD** (Execution History)
+    - 🟢 Green: Consistent execution on stated goals, met/beat guidance historically
+    - 🟡 Yellow: Mixed track record, some misses but generally delivers
+    - 🔴 Red: Pattern of missed targets, strategic pivots, or credibility issues
+
+    Look for: Historical guidance vs actuals, strategic initiative outcomes, tenure.
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 👔 Management Quality Assessment: [Company Name] ([Ticker])
+
+    ## Alignment Scorecard
+
+    | Factor | Score | Assessment |
+    | :--- | :---: | :--- |
+    | **Insider Ownership** | 🔴/🟡/🟢 | [Key stat, e.g., "CEO owns 12% ($3.2B value)"] |
+    | **Compensation Structure** | 🔴/🟡/🟢 | [Key feature, e.g., "60% tied to 3-year TSR"] |
+    | **Capital Allocation** | 🔴/🟡/🟢 | [Key action, e.g., "$5B buyback, 2% dividend yield"] |
+    | **Communication Quality** | 🔴/🟡/🟢 | [Observation, e.g., "Clear guidance, acknowledges risks"] |
+    | **Track Record** | 🔴/🟡/🟢 | [History, e.g., "Beat guidance 8 of last 10 quarters"] |
+
+    ## Detailed Analysis
+
+    ### 🏦 Insider Ownership: [🔴/🟡/🟢]
+    - **Finding:** [Ownership breakdown of key executives]
+    - **Evidence:** [Specific ownership percentages with $ values if available]
+    - **Recent Activity:** [Recent insider buys/sells if notable]
+
+    ### 💰 Compensation Structure: [🔴/🟡/🟢]
+    - **Finding:** [How executives are compensated]
+    - **Metrics Used:** [What performance metrics drive comp]
+    - **Vesting Period:** [Time horizon for equity comp]
+
+    ### 📊 Capital Allocation: [🔴/🟡/🟢]
+    - **Buybacks:** [Buyback program size and execution]
+    - **Dividends:** [Dividend policy and yield]
+    - **Dilution:** [Share count trend over 3-5 years]
+    - **M&A:** [Recent acquisition track record if applicable]
+
+    ### 🎤 Communication Quality: [🔴/🟡/🟢]
+    - **Finding:** [Assessment of management communication style]
+    - **Evidence:** [Specific examples from transcripts or calls]
+    - **Guidance Reliability:** [How often guidance is met]
+
+    ### 📈 Track Record: [🔴/🟡/🟢]
+    - **Finding:** [Overall execution assessment]
+    - **Key Achievements:** [Recent wins or delivered promises]
+    - **Key Misses:** [Any notable failures or pivots]
+
+    ## Overall Management Quality
+
+    **Alignment Score:** [X/5] 🟢 | [Y/5] 🟡 | [Z/5] 🔴
+
+    **Summary:** [2-3 sentences on overall management quality and alignment with shareholders]
+
+    **Key Concern (if any):** [Primary governance or alignment issue to watch]
+
+    ## 🔗 Sources
+    - [1] [Source and what data it provided]
+    - [2] [Source and what data it provided]
+    - [3] [Source and what data it provided]
+
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = All 5 factors green (exceptional alignment)
+    - 4 = 4 green, 1 yellow (strong alignment)
+    - 3 = Mixed scores, no red flags
+    - 2 = 1+ red factors (some concerns)
+    - 1 = Multiple red factors (poor alignment)
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The most significant alignment strength or concern]
+    ---
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS
+  expected_output: Management quality assessment with section score block.
+  agent: governance_expert
+  context:
+    - task_business_phase
+    - task_business_moat
+
+task_visual_valuation:
+  description: |
+    You are performing Visual Valuation Analysis for {ticker}.
+
+    This analysis uses historical valuation multiples and peer comparisons to determine
+    if the stock is undervalued, fairly valued, or overvalued.
+
+    You MUST:
+    1) Call historical_multiples_tool({ticker}) to get 10-20 years of historical valuation multiples.
+    2) Call peer_comparison_tool({ticker}) to get peer company valuations.
+    3) Call valuation_chart_tool({ticker}, phase) where phase is the business phase number (1-6).
+       - The tool generates charts saved to reports/charts/ directory.
+    4) Analyze the data for:
+       - Outlier years that may skew statistics (recessions, one-time events)
+       - Evidence of lifecycle phase changes that caused multiple re-rating
+       - Current multiple vs historical percentile
+       - Premium/discount to peers and whether it's justified
+    5) Write in plain English—a smart 8th-grader should understand every answer.
+
+    PHASE-SPECIFIC MULTIPLES TO ANALYZE:
+    - Phase 1-2 (Startup/Hypergrowth): P/S Ratio (Forward P/S if available)
+    - Phase 3 (Self Funding): P/S Ratio
+    - Phase 4-5 (Operating Leverage/Capital Return): P/E Ratio, P/FCF Ratio
+    - Phase 6 (Decline): P/B Ratio
+
+    VALUATION ASSESSMENT CRITERIA:
+    - 🟢 Undervalued: Current multiple below historical median AND below peer average
+    - 🟡 Fairly Valued: Current multiple within 15% of historical median OR peer average
+    - 🔴 Overvalued: Current multiple above historical median AND above peer average
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 📈 Visual Valuation Analysis: [Company Name] ([Ticker])
+
+    ## Valuation Summary
+
+    | Attribute | Value |
+    | :--- | :--- |
+    | **Current Price** | $[XXX] |
+    | **Business Phase** | Phase [#]: [Name] |
+    | **Primary Multiple Used** | [Multiple name appropriate for phase] |
+    | **Current Multiple** | [X]x |
+    | **Historical Median** | [X]x |
+    | **Peer Average** | [X]x |
+    | **Valuation Verdict** | 🟢 Undervalued / 🟡 Fairly Valued / 🔴 Overvalued |
+
+    ## Historical Multiple Analysis
+
+    ![Historical [Multiple] Chart](reports/charts/[TICKER]_[Multiple]_historical.png)
+
+    ### Chart Interpretation
+    - **Current vs Historical:** Current [multiple] of [X]x is [X]% [above/below] the [N]-year median of [X]x
+    - **Historical Range:** [X]x (min) to [X]x (max)
+    - **Current Percentile:** [X]th percentile of historical range
+
+    ### Outlier Analysis
+    | Year | Multiple | Likely Cause | Include in Analysis? |
+    | :---: | :---: | :--- | :---: |
+    | [Year] | [X]x | [Reason - recession, one-time charge, etc.] | Yes/No |
+    | [Year] | [X]x | [Reason] | Yes/No |
+
+    ### Phase Change Detection
+    - **Evidence of Re-rating:** [Yes/No - explain if multiple structurally shifted]
+    - **Pre-[Year] Average:** [X]x (if applicable)
+    - **Post-[Year] Average:** [X]x (if applicable)
+    - **Implication:** [What this means for current valuation context]
+
+    ## Peer Comparison Analysis
+
+    ![Peer Comparison Chart](reports/charts/[TICKER]_[Multiple]_peer_comparison.png)
+
+    ### Peer Multiples Table
+    | Company | Ticker | [Multiple] | vs {ticker} |
+    | :--- | :---: | :---: | :---: |
+    | [Peer 1 Name] | [XXX] | [X]x | +/-[X]% |
+    | [Peer 2 Name] | [XXX] | [X]x | +/-[X]% |
+    | [Peer 3 Name] | [XXX] | [X]x | +/-[X]% |
+    | **Peer Average** | — | [X]x | +/-[X]% |
+
+    ### Premium/Discount Justification
+    - **Current Premium/Discount:** {ticker} trades at [X]% [premium/discount] to peer average
+    - **Justified?** [Yes/No - explain based on growth, moat, quality factors from earlier analysis]
+    - **Key Differentiator:** [What makes this company different from peers that justifies premium/discount]
+
+    ## Valuation Verdict
+
+    **Assessment:** 🟢 Undervalued / 🟡 Fairly Valued / 🔴 Overvalued
+
+    **Confidence:** High / Medium / Low
+
+    **Rationale:** [3-4 sentences explaining the verdict based on:
+    1) Where current multiple sits vs historical range
+    2) How it compares to peers
+    3) Whether any premium/discount is justified by business quality
+    4) Key risks to the valuation thesis]
+
+    **Fair Value Range:** $[Low] - $[High] based on [methodology - e.g., "applying historical median P/E to current earnings"]
+
+    ## 🔗 Sources
+    - [1] Historical multiples data from FMP API
+    - [2] Peer comparison data from FMP API
+    - [3] [Any additional sources used]
+
+    ---
+    ### Section Score
+    **Score:** [1-10]/10
+    - 10 = Significantly undervalued (>30% below fair value) with high confidence
+    - 8-9 = Undervalued (15-30% below fair value) with good confidence
+    - 6-7 = Modestly undervalued (5-15% below fair value)
+    - 5 = Fairly valued (within 5% of fair value)
+    - 3-4 = Modestly overvalued (5-15% above fair value)
+    - 1-2 = Significantly overvalued (>15% above fair value)
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The primary valuation insight driving this score]
+    ---
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS
+  expected_output: Visual valuation analysis with charts and section score block (1-10 scale).
+  agent: valuation_analyst
+  context:
+    - task_business_phase
+    - task_business_moat
+
+task_quant_valuation:
+  description: |
+    You are performing Quantitative Valuation Analysis for {ticker}.
+
+    You MUST:
+    1) Call key_metrics_tool({ticker}) to get financial metrics with phase-appropriate context.
+    2) Call investment_data_tool({ticker}) to get additional valuation data.
+    3) Review the Business Phase context to use appropriate valuation methods.
+    4) Calculate or present relevant valuation multiples based on business phase.
+    5) Compare to peers and historical averages where possible.
+    6) Write in plain English—a smart 8th-grader should understand every answer.
+
+    VALUATION METHOD BY PHASE (from Business Phase task):
+    - Phase 1 (Startup): Forward P/S, TAM analysis
+    - Phase 2 (Hypergrowth): Forward P/S, Price to Gross Profit
+    - Phase 3 (Self Funding): P/S, Price to Gross Profit
+    - Phase 4 (Operating Leverage): Forward P/E, Forward P/FCF
+    - Phase 5 (Capital Return): Trailing P/E, Trailing P/FCF, Reverse DCF
+    - Phase 6 (Decline): P/B, Liquidation Value
+
+    VALUATION ASSESSMENT:
+    - 🟢 Undervalued: Trading below fair value based on phase-appropriate metrics
+    - 🟡 Fairly Valued: Trading near fair value
+    - 🔴 Overvalued: Trading above fair value, premium pricing
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 📊 Valuation Analysis: [Company Name] ([Ticker])
+
+    ## Valuation Summary
+
+    | Attribute | Value |
+    | :--- | :--- |
+    | **Current Price** | $[XXX] |
+    | **Market Cap** | $[XXX]B |
+    | **Business Phase** | Phase [#]: [Name] |
+    | **Primary Valuation Method** | [Method appropriate for phase] |
+    | **Valuation Assessment** | 🟢 Undervalued / 🟡 Fairly Valued / 🔴 Overvalued |
+
+    ## Phase-Appropriate Multiples
+
+    | Multiple | Current | 5Y Avg | Sector Avg | Assessment |
+    | :--- | ---: | ---: | ---: | :---: |
+    | [Primary multiple for phase] | [X]x | [X]x | [X]x | 🟢/🟡/🔴 |
+    | [Secondary multiple] | [X]x | [X]x | [X]x | 🟢/🟡/🔴 |
+    | [Tertiary multiple] | [X]x | [X]x | [X]x | 🟢/🟡/🔴 |
+
+    ## Financial Trends
+
+    | Metric | Current | YoY Change | 3Y Trend |
+    | :--- | ---: | ---: | :---: |
+    | Revenue | $[X]B | +/-[X]% | ↗/→/↘ |
+    | Gross Margin | [X]% | +/-[X]pp | ↗/→/↘ |
+    | Operating Margin | [X]% | +/-[X]pp | ↗/→/↘ |
+    | FCF Margin | [X]% | +/-[X]pp | ↗/→/↘ |
+
+    ## Valuation Context
+
+    ### Multiples Analysis
+    - **Current vs Historical:** [How current multiples compare to company's own history]
+    - **Current vs Peers:** [How multiples compare to sector/competitors]
+    - **Premium/Discount Justified?** [Why the current valuation is or isn't justified]
+
+    ### Growth vs Value Check
+    - **Implied Growth Rate:** [What growth rate is priced in based on current multiple]
+    - **Actual Growth Rate:** [Recent and projected growth]
+    - **Gap Analysis:** [Is the market too optimistic or pessimistic?]
+
+    ### Red Flags (if any)
+    - [Any concerning discrepancies between story and numbers]
+    - [Metrics that don't align with narrative]
+
+    ## Fair Value Estimate
+
+    | Scenario | Multiple | Implied Price | vs Current |
+    | :--- | ---: | ---: | ---: |
+    | Bear Case | [X]x | $[XXX] | -[X]% |
+    | Base Case | [X]x | $[XXX] | +/-[X]% |
+    | Bull Case | [X]x | $[XXX] | +[X]% |
+
+    **Methodology:** [Brief explanation of how scenarios were derived]
+
+    ## Investment Verdict
+
+    **Valuation Grade:** 🟢 Undervalued / 🟡 Fairly Valued / 🔴 Overvalued
+
+    **Summary:** [2-3 sentences on whether current price offers attractive entry point]
+
+    **Key Consideration:** [Most important valuation factor for this stock]
+
+    ## 🔗 Sources
+    - [1] [Source and what data it provided]
+    - [2] [Source and what data it provided]
+
+    ---
+    ### Section Score
+    **Score:** [1-5]/5
+    - 5 = Clearly undervalued with margin of safety
+    - 4 = Modestly undervalued or fairly valued with upside potential
+    - 3 = Fairly valued, limited margin of safety
+    - 2 = Modestly overvalued or fairly valued with downside risk
+    - 1 = Clearly overvalued, negative expected returns
+    **Confidence:** High/Medium/Low
+    **Key Factor:** [The primary valuation metric driving this assessment]
+    ---
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS
+  expected_output: Valuation analysis with section score block.
+  agent: quant_auditor
+  context:
+    - task_business_phase
+    - task_business_moat
+    - task_management_risk
+    - task_visual_valuation
+
+task_investment_scorecard:
+  description: |
+    You are creating the Investment Scorecard Executive Summary for {ticker}.
+
+    This task aggregates all section scores from the previous 10 tasks into a single-page scorecard.
+
+    You MUST:
+    1) Extract the Section Score from each of the 10 analysis tasks in context.
+    2) Calculate the total points (max 50) and determine the letter grade.
+    3) Create a visual scorecard with star ratings for each section.
+    4) Provide the investment recommendation based on the overall grade.
+
+    SECTION SCORE EXTRACTION:
+    Look for the "### Section Score" block at the end of each task output:
+    - task_price_sentiment → Price & Sentiment score (1-5)
+    - task_business_phase → Business Phase score (1-5)
+    - task_key_metrics → Key Metrics score (1-5)
+    - task_business_profile → Business Profile score (1-5)
+    - task_business_moat → Moat Analysis score (1-5)
+    - task_execution_risk → Execution Risk score (1-5)
+    - task_growth_drivers → Growth Drivers score (1-5)
+    - task_management_risk → Management Quality score (1-5)
+    - task_visual_valuation → Visual Valuation score (1-10) ⭐ WEIGHTED SECTION
+    - task_quant_valuation → Quant Valuation score (1-5)
+
+    GRADE CALCULATION:
+    Total Points = Sum of all 10 section scores (max 50)
+    NOTE: Visual Valuation is scored 1-10 to weight it higher (valuation is critical).
+
+    | Grade | Points | Recommendation |
+    | :---: | :---: | :--- |
+    | A | 44-50 | Strong Buy |
+    | B | 36-43 | Buy |
+    | C | 26-35 | Hold |
+    | D | 16-25 | Underweight |
+    | F | 0-15 | Avoid |
+
+    STAR CONVERSION (for 1-5 scores):
+    - 5 points = ⭐⭐⭐⭐⭐
+    - 4 points = ⭐⭐⭐⭐
+    - 3 points = ⭐⭐⭐
+    - 2 points = ⭐⭐
+    - 1 point = ⭐
+
+    STAR CONVERSION (for Visual Valuation 1-10 score):
+    - 9-10 = ⭐⭐⭐⭐⭐
+    - 7-8 = ⭐⭐⭐⭐
+    - 5-6 = ⭐⭐⭐
+    - 3-4 = ⭐⭐
+    - 1-2 = ⭐
+
+    OUTPUT ONLY THE TEMPLATE BELOW:
+
+    # 📋 Investment Scorecard: [Company Name] ([Ticker])
+
+    ## Overall Grade
+
+    # [GRADE LETTER]
+    **[Total Points]/50** | **[Recommendation]**
+
+    ---
+
+    ## Section Scores
+
+    | Section | Score | Rating | Key Factor |
+    | :--- | :---: | :--- | :--- |
+    | 📊 Price & Sentiment | [X]/5 | [stars] | [Key factor from that section] |
+    | 🔄 Business Phase | [X]/5 | [stars] | [Key factor] |
+    | 📈 Key Metrics | [X]/5 | [stars] | [Key factor] |
+    | 📋 Business Profile | [X]/5 | [stars] | [Key factor] |
+    | 🏰 Moat Analysis | [X]/5 | [stars] | [Key factor] |
+    | ⚠️ Execution Risk | [X]/5 | [stars] | [Key factor] |
+    | 🚀 Growth Drivers | [X]/5 | [stars] | [Key factor] |
+    | 👔 Management Quality | [X]/5 | [stars] | [Key factor] |
+    | 📈 Visual Valuation | [X]/10 | [stars] | [Key factor] |
+    | 💰 Quant Valuation | [X]/5 | [stars] | [Key factor] |
+
+    ---
+
+    ## Strengths (Highest Scores)
+
+    1. **[Section Name]** ([X]/max): [Brief explanation of why this scored high]
+    2. **[Section Name]** ([X]/max): [Brief explanation]
+    3. **[Section Name]** ([X]/max): [Brief explanation]
+
+    ## Concerns (Lowest Scores)
+
+    1. **[Section Name]** ([X]/max): [Brief explanation of why this scored low]
+    2. **[Section Name]** ([X]/max): [Brief explanation]
+    3. **[Section Name]** ([X]/max): [Brief explanation]
+
+    ---
+
+    ## Investment Thesis
+
+    **Bull Case:** [2-3 sentences on why an investor would buy this stock, drawing from highest-scoring sections]
+
+    **Bear Case:** [2-3 sentences on key risks and concerns, drawing from lowest-scoring sections]
+
+    **Bottom Line:** [1-2 sentences final verdict aligned with the grade and recommendation]
+
+    ---
+
+    *Scorecard generated from comprehensive analysis across 10 research dimensions.*
+
+    STOP HERE - DO NOT ADD ADDITIONAL SECTIONS
+  expected_output: Investment scorecard executive summary with letter grade and section ratings.
+  agent: scorecard_analyst
+  context:
+    - task_price_sentiment
+    - task_business_phase
+    - task_key_metrics
+    - task_business_profile
+    - task_business_moat
+    - task_execution_risk
+    - task_growth_drivers
+    - task_management_risk
+    - task_visual_valuation
+    - task_quant_valuation
