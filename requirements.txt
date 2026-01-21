@@ -17,3 +17,6 @@ matplotlib>=3.8.0
 
 # Streamlit web app
 streamlit>=1.31.0
+
+# Cloud storage for reports
+supabase>=2.0.0

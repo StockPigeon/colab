@@ -19,6 +19,7 @@ from .tools import (
     peer_comparison_tool,
     valuation_chart_tool,
 )
+from .progress_callbacks import create_task_callback
 
 
 class InvestmentResearchCrew:
@@ -145,6 +146,7 @@ class InvestmentResearchCrew:
             description=cfg["description"],
             expected_output=cfg["expected_output"],
             agent=self._agents[cfg["agent"]],
+            callback=create_task_callback("task_price_sentiment"),
         )
 
         # Task: Business Phase
@@ -153,6 +155,7 @@ class InvestmentResearchCrew:
             description=cfg["description"],
             expected_output=cfg["expected_output"],
             agent=self._agents[cfg["agent"]],
+            callback=create_task_callback("task_business_phase"),
         )
 
         # Task: Key Metrics (depends on Business Phase)
@@ -162,6 +165,7 @@ class InvestmentResearchCrew:
             expected_output=cfg["expected_output"],
             agent=self._agents[cfg["agent"]],
             context=[tasks["task_business_phase"]],
+            callback=create_task_callback("task_key_metrics"),
         )
 
         # Task: Business Profile (depends on Business Phase)
@@ -171,6 +175,7 @@ class InvestmentResearchCrew:
             expected_output=cfg["expected_output"],
             agent=self._agents[cfg["agent"]],
             context=[tasks["task_business_phase"]],
+            callback=create_task_callback("task_business_profile"),
         )
 
         # Task: Business Moat (depends on Business Phase)
@@ -180,6 +185,7 @@ class InvestmentResearchCrew:
             expected_output=cfg["expected_output"],
             agent=self._agents[cfg["agent"]],
             context=[tasks["task_business_phase"]],
+            callback=create_task_callback("task_business_moat"),
         )
 
         # Task: Execution Risk (depends on Business Phase and Moat)
@@ -189,6 +195,7 @@ class InvestmentResearchCrew:
             expected_output=cfg["expected_output"],
             agent=self._agents[cfg["agent"]],
             context=[tasks["task_business_phase"], tasks["task_business_moat"]],
+            callback=create_task_callback("task_execution_risk"),
         )
 
         # Task: Growth Drivers (depends on Business Phase and Moat)
@@ -198,6 +205,7 @@ class InvestmentResearchCrew:
             expected_output=cfg["expected_output"],
             agent=self._agents[cfg["agent"]],
             context=[tasks["task_business_phase"], tasks["task_business_moat"]],
+            callback=create_task_callback("task_growth_drivers"),
         )
 
         # Task: Management & Risk (depends on Business Phase and Moat)
@@ -207,6 +215,7 @@ class InvestmentResearchCrew:
             expected_output=cfg["expected_output"],
             agent=self._agents[cfg["agent"]],
             context=[tasks["task_business_phase"], tasks["task_business_moat"]],
+            callback=create_task_callback("task_management_risk"),
         )
 
         # Task: Visual Valuation (depends on Phase and Moat)
@@ -219,6 +228,7 @@ class InvestmentResearchCrew:
                 tasks["task_business_phase"],
                 tasks["task_business_moat"],
             ],
+            callback=create_task_callback("task_visual_valuation"),
         )
 
         # Task: Quant Valuation (depends on Phase, Moat, Risk, and Visual Valuation)
@@ -233,6 +243,7 @@ class InvestmentResearchCrew:
                 tasks["task_management_risk"],
                 tasks["task_visual_valuation"],
             ],
+            callback=create_task_callback("task_quant_valuation"),
         )
 
         # Task: Investment Scorecard (aggregates all 10 section scores)
@@ -253,6 +264,7 @@ class InvestmentResearchCrew:
                 tasks["task_visual_valuation"],
                 tasks["task_quant_valuation"],
             ],
+            callback=create_task_callback("task_investment_scorecard"),
         )
 
         return tasks

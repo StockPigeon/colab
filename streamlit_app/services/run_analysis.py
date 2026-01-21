@@ -100,10 +100,8 @@ def run_analysis(ticker: str):
     crew_instance = InvestmentResearchCrew()
     crew = crew_instance.crew()
 
-    # We can't easily hook into CrewAI's task execution,
-    # but we can simulate progress based on time estimates
-    # For now, mark task 0 as in progress and run
-    update_task(0, "in_progress")
+    # Note: Task 0 is already marked as in_progress by research_runner.py
+    # Progress updates are now handled by CrewAI task callbacks in crew.py
 
     # Run the crew
     result = crew.kickoff(inputs={"ticker": ticker})
@@ -168,6 +166,28 @@ def run_analysis(ticker: str):
         )
     except Exception:
         pass
+
+    # Upload reports to cloud storage (if configured)
+    try:
+        from streamlit_app.services.storage import get_storage_service
+        import glob
+
+        storage = get_storage_service()
+        if storage:
+            # Find chart files for this ticker
+            chart_files = [Path(p) for p in glob.glob(f"reports/charts/{ticker}*.png")]
+
+            storage.upload_report(
+                ticker=ticker,
+                company_name=company_name,
+                markdown_path=Path(report_md) if Path(report_md).exists() else None,
+                equity_pdf_path=Path(equity_pdf) if Path(equity_pdf).exists() else None,
+                memo_pdf_path=Path(memo_pdf) if Path(memo_pdf).exists() else None,
+                chart_paths=chart_files,
+            )
+    except Exception as e:
+        # Cloud storage upload is optional - don't fail the analysis
+        print(f"Note: Could not upload to cloud storage: {e}")
 
     return company_name
 

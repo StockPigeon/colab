@@ -28,7 +28,9 @@ except ImportError:
 from streamlit_app.components.search import render_search, render_selected_stock
 from streamlit_app.components.progress import render_progress, render_analysis_running
 from streamlit_app.components.results import render_results, check_results_exist
+from streamlit_app.components.report_history import render_report_history
 from streamlit_app.services.research_runner import get_runner, get_progress, clear_progress
+from streamlit_app.services.storage import is_storage_configured
 
 # Page configuration
 st.set_page_config(
@@ -46,6 +48,7 @@ def init_session_state():
         "selected_company": None,
         "start_analysis": False,
         "analysis_complete": False,
+        "view_report_id": None,  # For viewing historical reports from cloud
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -102,9 +105,15 @@ def render_sidebar():
                 st.session_state.selected_company = None
                 st.session_state.analysis_complete = False
                 st.session_state.start_analysis = False
+                st.session_state.pop("view_report_id", None)
                 st.rerun()
 
         st.divider()
+
+        # Report history (if cloud storage is configured)
+        if is_storage_configured():
+            render_report_history()
+            st.divider()
 
         # Info
         st.caption("Powered by CrewAI + Financial Modeling Prep")
