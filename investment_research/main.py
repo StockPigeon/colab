@@ -10,7 +10,6 @@ from .helpers import load_and_validate_env, clear_cache, get_cache_stats
 from .pdf import generate_equity_research_pdf, generate_hedge_fund_memo_pdf
 from .charts import generate_product_segment_chart, generate_geographic_segment_chart
 from .tools import (
-    fmp_news_tool,
     investment_data_tool,
     price_sentiment_data_tool,
     governance_data_tool,
@@ -20,7 +19,6 @@ from .tools import (
 
 # Tool registry for CLI access
 TOOLS = {
-    "fmp_news": fmp_news_tool,
     "investment_data": investment_data_tool,
     "price_sentiment": price_sentiment_data_tool,
     "governance_data": governance_data_tool,
@@ -320,7 +318,7 @@ Examples:
   # Test individual agent
   python -m investment_research.main --agent strategist --ticker AAPL
 
-Available tools: fmp_news, investment_data, price_sentiment, governance_data, business_profile
+Available tools: investment_data, price_sentiment, governance_data, business_profile
 
 Available tasks: task_price_sentiment, task_business_phase, task_key_metrics,
                  task_business_profile, task_business_moat, task_execution_risk,

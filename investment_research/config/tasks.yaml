@@ -551,7 +551,7 @@ task_execution_risk:
 
     You MUST:
     1) Use governance_data_tool({ticker}) to get SEC filing links and earnings transcript.
-    2) Use fmp_news_tool({ticker}) to get recent news and press releases.
+    2) Use web_search_tool({ticker}:recent news) to get recent news and press releases.
     3) Use ScrapeWebsiteTool to extract relevant sections from the company's latest 10-K:
        - "Major Customers" or "Customer Concentration" section
        - "Risk Factors" section (Item 1A)

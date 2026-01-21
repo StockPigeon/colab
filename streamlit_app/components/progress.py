@@ -1,7 +1,7 @@
 """Progress display component."""
 
 import streamlit as st
-from ..services.research_runner import ProgressState
+from streamlit_app.services.research_runner import ProgressState
 
 
 def render_progress(progress: ProgressState):

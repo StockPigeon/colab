@@ -1,11 +1,18 @@
-"""Research runner with progress tracking."""
+"""Research runner with file-based progress tracking for Streamlit."""
 
-import threading
-import queue
+import json
+import os
+import subprocess
+import sys
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List, Callable, Any
 from pathlib import Path
+from typing import Optional, List, Any
+
+
+# Progress file location
+PROGRESS_FILE = Path("/tmp/investment_research_progress.json")
 
 
 @dataclass
@@ -15,8 +22,23 @@ class TaskProgress:
     display_name: str
     agent_name: str
     status: str = "pending"  # pending, in_progress, completed, error
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+
+    def to_dict(self):
+        return {
+            "task_id": self.task_id,
+            "display_name": self.display_name,
+            "agent_name": self.agent_name,
+            "status": self.status,
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(
+            task_id=data["task_id"],
+            display_name=data["display_name"],
+            agent_name=data["agent_name"],
+            status=data.get("status", "pending"),
+        )
 
 
 @dataclass
@@ -28,7 +50,7 @@ class ProgressState:
     is_running: bool = False
     is_complete: bool = False
     error: Optional[str] = None
-    result: Any = None
+    current_task_index: int = 0
 
     @property
     def total_tasks(self) -> int:
@@ -50,6 +72,29 @@ class ProgressState:
             if t.status == "in_progress":
                 return t
         return None
+
+    def to_dict(self):
+        return {
+            "ticker": self.ticker,
+            "company_name": self.company_name,
+            "tasks": [t.to_dict() for t in self.tasks],
+            "is_running": self.is_running,
+            "is_complete": self.is_complete,
+            "error": self.error,
+            "current_task_index": self.current_task_index,
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(
+            ticker=data["ticker"],
+            company_name=data.get("company_name", ""),
+            tasks=[TaskProgress.from_dict(t) for t in data.get("tasks", [])],
+            is_running=data.get("is_running", False),
+            is_complete=data.get("is_complete", False),
+            error=data.get("error"),
+            current_task_index=data.get("current_task_index", 0),
+        )
 
 
 # Task definitions with display names
@@ -77,219 +122,113 @@ def create_initial_progress(ticker: str) -> ProgressState:
     return ProgressState(ticker=ticker, tasks=tasks)
 
 
+def save_progress(progress: ProgressState) -> None:
+    """Save progress state to file."""
+    with open(PROGRESS_FILE, "w") as f:
+        json.dump(progress.to_dict(), f)
+
+
+def load_progress() -> Optional[ProgressState]:
+    """Load progress state from file."""
+    if not PROGRESS_FILE.exists():
+        return None
+    try:
+        with open(PROGRESS_FILE, "r") as f:
+            data = json.load(f)
+        return ProgressState.from_dict(data)
+    except Exception:
+        return None
+
+
+def clear_progress() -> None:
+    """Clear the progress file."""
+    if PROGRESS_FILE.exists():
+        PROGRESS_FILE.unlink()
+
+
+def update_task_progress(task_index: int, status: str) -> None:
+    """Update a specific task's progress."""
+    progress = load_progress()
+    if progress and task_index < len(progress.tasks):
+        progress.tasks[task_index].status = status
+        if status == "in_progress":
+            progress.current_task_index = task_index
+            # Mark previous tasks as completed
+            for i in range(task_index):
+                if progress.tasks[i].status != "completed":
+                    progress.tasks[i].status = "completed"
+        save_progress(progress)
+
+
+def is_analysis_running() -> bool:
+    """Check if an analysis is currently running."""
+    progress = load_progress()
+    return progress is not None and progress.is_running and not progress.is_complete
+
+
+def start_analysis(ticker: str) -> bool:
+    """
+    Start the analysis in a background process.
+    Returns True if started successfully.
+    """
+    if is_analysis_running():
+        return False
+
+    # Create initial progress
+    progress = create_initial_progress(ticker)
+    progress.is_running = True
+    progress.tasks[0].status = "in_progress"
+    save_progress(progress)
+
+    # Get the path to the runner script
+    runner_script = Path(__file__).parent / "run_analysis.py"
+
+    # Start the analysis in a subprocess
+    env = os.environ.copy()
+    subprocess.Popen(
+        [sys.executable, str(runner_script), ticker],
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+    return True
+
+
+def get_progress() -> Optional[ProgressState]:
+    """Get current progress state."""
+    return load_progress()
+
+
+# Keep these for backwards compatibility with existing code
 class ResearchRunner:
-    """
-    Manages background execution of research analysis with progress tracking.
-
-    Usage:
-        runner = ResearchRunner()
-        runner.start("AAPL")
-
-        while not runner.is_complete:
-            progress = runner.get_progress()
-            # Update UI with progress
-            time.sleep(1)
-
-        result = runner.get_result()
-    """
-
-    def __init__(self):
-        self.progress_state: Optional[ProgressState] = None
-        self._thread: Optional[threading.Thread] = None
-        self._stop_event = threading.Event()
-        self._lock = threading.Lock()
+    """Wrapper class for compatibility."""
 
     @property
     def is_running(self) -> bool:
-        with self._lock:
-            return self.progress_state is not None and self.progress_state.is_running
+        return is_analysis_running()
 
     @property
     def is_complete(self) -> bool:
-        with self._lock:
-            return self.progress_state is not None and self.progress_state.is_complete
+        progress = load_progress()
+        return progress is not None and progress.is_complete
 
     def start(self, ticker: str) -> None:
-        """Start analysis in a background thread."""
-        if self.is_running:
-            return
-
-        # Initialize progress state
-        with self._lock:
-            self.progress_state = create_initial_progress(ticker)
-            self.progress_state.is_running = True
-
-        # Start background thread
-        self._stop_event.clear()
-        self._thread = threading.Thread(
-            target=self._run_analysis,
-            args=(ticker,),
-            daemon=True
-        )
-        self._thread.start()
-
-    def stop(self) -> None:
-        """Request stop of running analysis."""
-        self._stop_event.set()
+        start_analysis(ticker)
 
     def get_progress(self) -> Optional[ProgressState]:
-        """Get current progress state (thread-safe copy)."""
-        with self._lock:
-            if self.progress_state is None:
-                return None
-            # Return a shallow copy to avoid race conditions
-            return ProgressState(
-                ticker=self.progress_state.ticker,
-                company_name=self.progress_state.company_name,
-                tasks=list(self.progress_state.tasks),
-                is_running=self.progress_state.is_running,
-                is_complete=self.progress_state.is_complete,
-                error=self.progress_state.error,
-                result=self.progress_state.result,
-            )
+        return load_progress()
 
-    def get_result(self) -> Any:
-        """Get the analysis result (after completion)."""
-        with self._lock:
-            if self.progress_state and self.progress_state.is_complete:
-                return self.progress_state.result
-        return None
-
-    def _update_task_status(self, task_index: int, status: str) -> None:
-        """Update a task's status (thread-safe)."""
-        with self._lock:
-            if self.progress_state and task_index < len(self.progress_state.tasks):
-                task = self.progress_state.tasks[task_index]
-                task.status = status
-                if status == "in_progress":
-                    task.started_at = datetime.now()
-                elif status == "completed":
-                    task.completed_at = datetime.now()
-
-    def _run_analysis(self, ticker: str) -> None:
-        """Run the actual analysis (in background thread)."""
-        import sys
-        import os
-
-        # Add parent directory to path for imports
-        parent_dir = str(Path(__file__).parent.parent.parent)
-        if parent_dir not in sys.path:
-            sys.path.insert(0, parent_dir)
-
-        try:
-            # Import here to avoid circular imports
-            from investment_research.crew import InvestmentResearchCrew
-            from investment_research.helpers import load_and_validate_env, clear_cache
-            from investment_research.pdf import (
-                generate_equity_research_pdf,
-                generate_hedge_fund_memo_pdf,
-            )
-            from investment_research.main import generate_revenue_charts, SECTION_NAMES
-
-            # Load environment
-            load_and_validate_env()
-            clear_cache()
-
-            # Create crew with callbacks
-            crew_instance = InvestmentResearchCrew()
-
-            # Mark first task as in progress
-            self._update_task_status(0, "in_progress")
-
-            # Run the crew - we'll track progress by intercepting task outputs
-            crew = crew_instance.crew()
-
-            # Unfortunately CrewAI doesn't expose easy task-level callbacks,
-            # so we'll run the crew and track progress based on task completion
-            result = crew.kickoff(inputs={"ticker": ticker})
-
-            # Mark all tasks as completed
-            for i in range(len(TASK_INFO)):
-                self._update_task_status(i, "completed")
-
-            # Extract company name from results
-            company_name = ticker
-            for i, task_output in enumerate(result.tasks_output):
-                section_name = SECTION_NAMES[i] if i < len(SECTION_NAMES) else ""
-                if section_name in ("BUSINESS PROFILE", "BUSINESS PHASE"):
-                    lines = task_output.raw.split('\n')
-                    for line in lines:
-                        if 'Analysis:' in line and '(' in line:
-                            try:
-                                name_part = line.split('Analysis:')[1].strip()
-                                if '(' in name_part:
-                                    company_name = name_part.split('(')[0].strip()
-                                    break
-                            except Exception:
-                                pass
-                    if company_name != ticker:
-                        break
-
-            with self._lock:
-                if self.progress_state:
-                    self.progress_state.company_name = company_name
-
-            # Save markdown report
-            report_md = f"{ticker}_report.md"
-            with open(report_md, "w", encoding="utf-8") as f:
-                f.write(f"# Investment Analysis Report: {ticker}\n\n")
-                f.write(f"_Generated via CrewAI + FMP + Web Research tools._\n\n")
-                f.write(f"_Run time (UTC): {datetime.utcnow().isoformat(timespec='seconds')}_\n\n")
-                for i, task_output in enumerate(result.tasks_output):
-                    name = SECTION_NAMES[i] if i < len(SECTION_NAMES) else f"Section {i+1}"
-                    f.write(f"## {name}\n\n")
-                    f.write(task_output.raw.strip() + "\n\n")
-
-            # Generate charts
-            generate_revenue_charts(ticker, company_name)
-
-            # Generate PDFs
-            equity_pdf = f"{ticker}_equity_research.pdf"
-            memo_pdf = f"{ticker}_investment_memo.pdf"
-
-            try:
-                generate_equity_research_pdf(
-                    ticker=ticker,
-                    company_name=company_name,
-                    task_outputs=result.tasks_output,
-                    section_names=SECTION_NAMES,
-                    output_path=equity_pdf
-                )
-            except Exception:
-                pass
-
-            try:
-                generate_hedge_fund_memo_pdf(
-                    ticker=ticker,
-                    company_name=company_name,
-                    task_outputs=result.tasks_output,
-                    section_names=SECTION_NAMES,
-                    output_path=memo_pdf
-                )
-            except Exception:
-                pass
-
-            # Store result
-            with self._lock:
-                if self.progress_state:
-                    self.progress_state.result = result
-                    self.progress_state.is_complete = True
-                    self.progress_state.is_running = False
-
-        except Exception as e:
-            with self._lock:
-                if self.progress_state:
-                    self.progress_state.error = str(e)
-                    self.progress_state.is_complete = True
-                    self.progress_state.is_running = False
+    def reset(self) -> None:
+        clear_progress()
 
 
-# Singleton instance for Streamlit session
 _runner_instance: Optional[ResearchRunner] = None
 
 
 def get_runner() -> ResearchRunner:
-    """Get or create the singleton runner instance."""
+    """Get or create the runner instance."""
     global _runner_instance
     if _runner_instance is None:
         _runner_instance = ResearchRunner()

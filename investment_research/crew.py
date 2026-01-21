@@ -8,7 +8,6 @@ from crewai import Agent, Crew, Process, Task
 from crewai_tools import ScrapeWebsiteTool
 
 from .tools import (
-    fmp_news_tool,
     investment_data_tool,
     price_sentiment_data_tool,
     governance_data_tool,
@@ -63,7 +62,7 @@ class InvestmentResearchCrew:
             role=cfg["role"],
             goal=cfg["goal"],
             backstory=cfg["backstory"],
-            tools=[price_sentiment_data_tool, fmp_news_tool, web_search_tool, self.scrape_tool],
+            tools=[price_sentiment_data_tool, web_search_tool, self.scrape_tool],
             verbose=True,
             allow_delegation=False,
         )
@@ -85,7 +84,7 @@ class InvestmentResearchCrew:
             role=cfg["role"],
             goal=cfg["goal"],
             backstory=cfg["backstory"],
-            tools=[governance_data_tool, sec_filings_tool, self.scrape_tool],
+            tools=[governance_data_tool, sec_filings_tool, web_search_tool, self.scrape_tool],
             verbose=True,
             allow_delegation=False,
         )

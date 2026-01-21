@@ -1,7 +1,7 @@
 """Stock search component."""
 
 import streamlit as st
-from ..services.stock_search import search_stocks, validate_ticker
+from streamlit_app.services.stock_search import search_stocks, validate_ticker
 
 
 def render_search():

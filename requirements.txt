@@ -1,6 +1,7 @@
 # Core HTTP + env handling
 requests>=2.31.0
 python-dotenv>=1.0.1
+ddgs>=7.0.0
 
 # CrewAI stack
 crewai>=0.70.0

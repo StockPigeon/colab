@@ -40,6 +40,64 @@ def parse_search_input(input_string: str) -> tuple[str, str]:
     return ("", input_string)
 
 
+def search_duckduckgo_lib(query: str, search_type: str = "text", num_results: int = 8) -> dict:
+    """
+    Search using duckduckgo-search Python library.
+
+    Args:
+        query: Search query string
+        search_type: "text" for web, "news" for news
+        num_results: Number of results to return
+
+    Returns:
+        Dictionary with search results or error
+    """
+    try:
+        from ddgs import DDGS
+    except ImportError:
+        try:
+            from duckduckgo_search import DDGS
+        except ImportError:
+            return {"error": "ddgs package not installed. Run: pip install ddgs"}
+
+    import time
+    import random
+
+    # Add small random delay to avoid rate limiting
+    time.sleep(random.uniform(0.5, 1.5))
+
+    try:
+        with DDGS() as ddgs:
+            if search_type == "news":
+                raw_results = list(ddgs.news(query, max_results=num_results))
+                results = []
+                for item in raw_results:
+                    results.append({
+                        "title": item.get("title", ""),
+                        "snippet": item.get("body", ""),
+                        "url": item.get("url", ""),
+                        "date": item.get("date", ""),
+                        "source": item.get("source", ""),
+                    })
+            else:
+                raw_results = list(ddgs.text(query, max_results=num_results))
+                results = []
+                for item in raw_results:
+                    results.append({
+                        "title": item.get("title", ""),
+                        "snippet": item.get("body", ""),
+                        "url": item.get("href", ""),
+                    })
+
+            return {"ok": True, "data": {"results": results}, "source": "duckduckgo"}
+    except Exception as e:
+        error_msg = str(e)
+        # If rate limited, return empty results rather than error
+        if "Ratelimit" in error_msg or "202" in error_msg:
+            return {"ok": True, "data": {"results": []}, "source": "duckduckgo", "note": "Rate limited, returning empty"}
+        return {"error": f"DuckDuckGo search failed: {error_msg}"}
+
+
 def search_serper(
     query: str, search_type: str = "search", num_results: int = 10
 ) -> dict:
@@ -82,65 +140,13 @@ def search_serper(
         return {"error": str(e), "fallback": True}
 
 
-def search_duckduckgo(query: str) -> dict:
-    """
-    Search using DuckDuckGo Instant Answer API (free, no key).
-
-    Note: This is limited - returns instant answers, not full search results.
-
-    Args:
-        query: Search query string
-
-    Returns:
-        Dictionary with search results or error
-    """
-    url = "https://api.duckduckgo.com/"
-
-    try:
-        resp = session.get(
-            url,
-            params={"q": query, "format": "json", "no_redirect": "1"},
-            timeout=10,
-        )
-
-        if resp.status_code != 200:
-            return {"error": f"DuckDuckGo API error: {resp.status_code}"}
-
-        data = resp.json()
-
-        # Extract useful information
-        results = []
-
-        # Abstract (main answer)
-        if data.get("Abstract"):
-            results.append(
-                {
-                    "title": data.get("Heading", ""),
-                    "snippet": data.get("Abstract"),
-                    "url": data.get("AbstractURL"),
-                    "source": data.get("AbstractSource"),
-                }
-            )
-
-        # Related topics
-        for topic in data.get("RelatedTopics", [])[:5]:
-            if isinstance(topic, dict) and topic.get("Text"):
-                results.append(
-                    {
-                        "title": topic.get("Text", "")[:100],
-                        "snippet": topic.get("Text"),
-                        "url": topic.get("FirstURL"),
-                    }
-                )
-
-        return {"ok": True, "data": {"results": results}, "source": "duckduckgo"}
-    except Exception as e:
-        return {"error": str(e)}
-
-
 def search_combined(query: str, include_news: bool = True) -> dict:
     """
     Perform search using available APIs with fallback.
+
+    Priority:
+    1. DuckDuckGo (free, no API key needed)
+    2. Serper (if API key available)
 
     Args:
         query: Search query string
@@ -157,55 +163,50 @@ def search_combined(query: str, include_news: bool = True) -> dict:
         "errors": [],
     }
 
-    # Try Serper first for web results
-    serper_web = search_serper(query, "search")
-    if serper_web.get("ok"):
-        results["sources_used"].append("serper-web")
-        organic = serper_web.get("data", {}).get("organic", [])
-        for item in organic[:8]:
-            results["web_results"].append(
-                {
+    # Try DuckDuckGo first (free, no API key)
+    ddg_web = search_duckduckgo_lib(query, "text")
+    if ddg_web.get("ok"):
+        results["sources_used"].append("duckduckgo-web")
+        results["web_results"] = ddg_web.get("data", {}).get("results", [])[:8]
+    elif ddg_web.get("error"):
+        results["errors"].append(f"DuckDuckGo web: {ddg_web.get('error')}")
+
+    # Try DuckDuckGo news if requested
+    if include_news:
+        ddg_news = search_duckduckgo_lib(query, "news")
+        if ddg_news.get("ok"):
+            results["sources_used"].append("duckduckgo-news")
+            results["news_results"] = ddg_news.get("data", {}).get("results", [])[:8]
+        elif ddg_news.get("error"):
+            results["errors"].append(f"DuckDuckGo news: {ddg_news.get('error')}")
+
+    # Fallback to Serper if DuckDuckGo failed
+    if not results["web_results"]:
+        serper_web = search_serper(query, "search")
+        if serper_web.get("ok"):
+            results["sources_used"].append("serper-web")
+            organic = serper_web.get("data", {}).get("organic", [])
+            for item in organic[:8]:
+                results["web_results"].append({
                     "title": item.get("title"),
                     "snippet": item.get("snippet"),
                     "url": item.get("link"),
                     "date": item.get("date"),
-                }
-            )
-    elif serper_web.get("error"):
-        results["errors"].append(f"Serper web: {serper_web.get('error')}")
+                })
 
-    # Try Serper news if requested
-    if include_news:
+    if include_news and not results["news_results"]:
         serper_news = search_serper(query, "news")
         if serper_news.get("ok"):
             results["sources_used"].append("serper-news")
             news = serper_news.get("data", {}).get("news", [])
             for item in news[:8]:
-                results["news_results"].append(
-                    {
-                        "title": item.get("title"),
-                        "snippet": item.get("snippet"),
-                        "url": item.get("link"),
-                        "date": item.get("date"),
-                        "source": item.get("source"),
-                    }
-                )
-        elif serper_news.get("error") and "Missing SERPER_API_KEY" not in str(serper_news.get("error")):
-            results["errors"].append(f"Serper news: {serper_news.get('error')}")
-
-    # Fallback to DuckDuckGo if no results from Serper
-    if not results["web_results"] and not results["news_results"]:
-        ddg = search_duckduckgo(query)
-        if ddg.get("ok"):
-            results["sources_used"].append("duckduckgo")
-            results["web_results"] = ddg.get("data", {}).get("results", [])
-        elif ddg.get("error"):
-            results["errors"].append(f"DuckDuckGo: {ddg.get('error')}")
-
-    # If still no results, provide guidance
-    if not results["web_results"] and not results["news_results"]:
-        if "Missing SERPER_API_KEY" in str(results.get("errors", [])):
-            results["suggestion"] = "Set SERPER_API_KEY environment variable for search functionality"
+                results["news_results"].append({
+                    "title": item.get("title"),
+                    "snippet": item.get("snippet"),
+                    "url": item.get("link"),
+                    "date": item.get("date"),
+                    "source": item.get("source"),
+                })
 
     results["total_results"] = len(results["web_results"]) + len(results["news_results"])
     return results
