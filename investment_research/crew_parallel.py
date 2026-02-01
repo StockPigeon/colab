@@ -32,7 +32,6 @@ class ParallelInvestmentResearchCrew:
         self.config_dir = Path(__file__).parent / "config"
         self.agents_config = self._load_yaml("agents.yaml")
         self.tasks_config = self._load_yaml("tasks.yaml")
-        self.scrape_tool = ScrapeWebsiteTool()
 
     def _load_yaml(self, filename: str) -> dict:
         """Load a YAML configuration file."""
@@ -79,6 +78,9 @@ class ParallelInvestmentResearchCrew:
         Args:
             team: 'blue' or 'red'
         """
+        # Create a separate ScrapeWebsiteTool instance for this team to avoid thread-safety issues
+        scrape_tool = ScrapeWebsiteTool()
+
         agents = {}
 
         agents["phase_classifier"] = self._create_agent(
@@ -90,19 +92,19 @@ class ParallelInvestmentResearchCrew:
         agents["sentiment_analyst"] = self._create_agent(
             "sentiment_analyst",
             team,
-            [price_sentiment_data_tool, web_search_tool, self.scrape_tool]
+            [price_sentiment_data_tool, web_search_tool, scrape_tool]
         )
 
         agents["strategist"] = self._create_agent(
             "strategist",
             team,
-            [investment_data_tool, web_search_tool, sec_filings_tool, self.scrape_tool]
+            [investment_data_tool, web_search_tool, sec_filings_tool, scrape_tool]
         )
 
         agents["governance_expert"] = self._create_agent(
             "governance_expert",
             team,
-            [governance_data_tool, sec_filings_tool, web_search_tool, self.scrape_tool]
+            [governance_data_tool, sec_filings_tool, web_search_tool, scrape_tool]
         )
 
         agents["quant_auditor"] = self._create_agent(
@@ -148,7 +150,9 @@ class ParallelInvestmentResearchCrew:
         """
         tasks = {}
 
-        # Wave 1: Independent tasks that can run in parallel
+        # All tasks run sequentially within each team.
+        # Parallelism is achieved by running Red and Blue teams concurrently via ThreadPoolExecutor.
+        # CrewAI's async_execution=True doesn't work well with task context dependencies.
         wave1_tasks = []
 
         # Price & Sentiment (Wave 1)
@@ -157,7 +161,7 @@ class ParallelInvestmentResearchCrew:
             description=cfg["description"].replace("{ticker}", ticker),
             expected_output=cfg["expected_output"],
             agent=agents["sentiment_analyst"],
-            async_execution=True,  # Can run in parallel
+            async_execution=False,
             callback=create_task_callback(f"{team}_price_sentiment"),
         )
         wave1_tasks.append(tasks["sentiment"])
@@ -168,7 +172,7 @@ class ParallelInvestmentResearchCrew:
             description=cfg["description"].replace("{ticker}", ticker),
             expected_output=cfg["expected_output"],
             agent=agents["business_profile_analyst"],
-            async_execution=True,  # Can run in parallel
+            async_execution=False,
             callback=create_task_callback(f"{team}_business_profile"),
         )
         wave1_tasks.append(tasks["profile"])
@@ -179,7 +183,7 @@ class ParallelInvestmentResearchCrew:
             description=cfg["description"].replace("{ticker}", ticker),
             expected_output=cfg["expected_output"],
             agent=agents["phase_classifier"],
-            async_execution=True,  # Can run in parallel
+            async_execution=False,
             callback=create_task_callback(f"{team}_business_phase"),
         )
         wave1_tasks.append(tasks["phase"])
@@ -200,13 +204,14 @@ class ParallelInvestmentResearchCrew:
         wave2_tasks.append(tasks["metrics"])
 
         # Moat Analysis (Wave 2 - can use phase context)
+        # Note: async_execution=False because Wave 3 tasks depend on this
         cfg = self.tasks_config["task_business_moat"]
         tasks["moat"] = Task(
             description=cfg["description"].replace("{ticker}", ticker),
             expected_output=cfg["expected_output"],
             agent=agents["strategist"],
             context=[tasks["phase"]],
-            async_execution=True,  # Can run parallel with metrics
+            async_execution=False,  # Must be sync - Wave 3 tasks depend on this
             callback=create_task_callback(f"{team}_business_moat"),
         )
         wave2_tasks.append(tasks["moat"])
@@ -218,12 +223,13 @@ class ParallelInvestmentResearchCrew:
             expected_output=cfg["expected_output"],
             agent=agents["governance_expert"],
             context=[tasks["phase"]],
-            async_execution=True,  # Can run parallel
+            async_execution=False,  # Must be sync - scorecard depends on this
             callback=create_task_callback(f"{team}_execution_risk"),
         )
         wave2_tasks.append(tasks["exec_risk"])
 
         # Wave 3: Advanced analysis
+        # Note: All Wave 3 tasks run sequentially because scorecard depends on them
         wave3_tasks = []
 
         # Growth Drivers (Wave 3)
@@ -233,7 +239,7 @@ class ParallelInvestmentResearchCrew:
             expected_output=cfg["expected_output"],
             agent=agents["strategist"],
             context=[tasks["phase"], tasks["moat"]],
-            async_execution=True,
+            async_execution=False,  # Must be sync - scorecard depends on this
             callback=create_task_callback(f"{team}_growth_drivers"),
         )
         wave3_tasks.append(tasks["growth"])
@@ -245,7 +251,7 @@ class ParallelInvestmentResearchCrew:
             expected_output=cfg["expected_output"],
             agent=agents["governance_expert"],
             context=[tasks["phase"], tasks["moat"]],
-            async_execution=True,
+            async_execution=False,  # Must be sync - scorecard depends on this
             callback=create_task_callback(f"{team}_management_risk"),
         )
         wave3_tasks.append(tasks["mgmt_risk"])
@@ -257,7 +263,7 @@ class ParallelInvestmentResearchCrew:
             expected_output=cfg["expected_output"],
             agent=agents["valuation_analyst"],
             context=[tasks["phase"], tasks["moat"]],
-            async_execution=True,
+            async_execution=False,  # Must be sync - quant_val depends on this
             callback=create_task_callback(f"{team}_visual_valuation"),
         )
         wave3_tasks.append(tasks["visual_val"])
@@ -269,7 +275,7 @@ class ParallelInvestmentResearchCrew:
             expected_output=cfg["expected_output"],
             agent=agents["quant_auditor"],
             context=[tasks["phase"], tasks["moat"], tasks["visual_val"]],
-            async_execution=True,
+            async_execution=False,  # Must be sync - scorecard depends on this
             callback=create_task_callback(f"{team}_quant_valuation"),
         )
         wave3_tasks.append(tasks["quant_val"])

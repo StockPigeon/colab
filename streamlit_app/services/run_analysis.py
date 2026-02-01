@@ -127,11 +127,13 @@ def run_analysis(ticker: str, use_parallel: bool = True):
         red_output = None
         blue_output = None
 
-    # Extract company name
+    # Extract company name from task outputs
     company_name = ticker
-    for i, task_output in enumerate(result.tasks_output):
-        section_name = SECTION_NAMES[i] if i < len(SECTION_NAMES) else ""
-        if section_name in ("BUSINESS PROFILE", "BUSINESS PHASE"):
+    if hasattr(result, 'tasks_output') and result.tasks_output:
+        # Search all task outputs for company name (parallel mode may have different ordering)
+        for task_output in result.tasks_output:
+            if not hasattr(task_output, 'raw'):
+                continue
             lines = task_output.raw.split('\n')
             for line in lines:
                 if 'Analysis:' in line and '(' in line:
@@ -151,10 +153,12 @@ def run_analysis(ticker: str, use_parallel: bool = True):
         f.write(f"# Investment Analysis Report: {ticker}\n\n")
         f.write(f"_Generated via CrewAI + FMP + Web Research tools._\n\n")
         f.write(f"_Run time (UTC): {datetime.utcnow().isoformat(timespec='seconds')}_\n\n")
-        for i, task_output in enumerate(result.tasks_output):
-            name = SECTION_NAMES[i] if i < len(SECTION_NAMES) else f"Section {i+1}"
-            f.write(f"## {name}\n\n")
-            f.write(task_output.raw.strip() + "\n\n")
+        if hasattr(result, 'tasks_output') and result.tasks_output:
+            for i, task_output in enumerate(result.tasks_output):
+                name = SECTION_NAMES[i] if i < len(SECTION_NAMES) else f"Section {i+1}"
+                if hasattr(task_output, 'raw'):
+                    f.write(f"## {name}\n\n")
+                    f.write(task_output.raw.strip() + "\n\n")
 
     # Generate charts
     try:
@@ -181,6 +185,11 @@ def run_analysis(ticker: str, use_parallel: bool = True):
             )
         except Exception as e:
             print(f"Warning: Unified report generation failed: {e}")
+            # Log the warning to progress file so users can see it
+            data = load_progress()
+            if data:
+                data["pdf_warning"] = f"PDF generation failed: {e}"
+                save_progress(data)
 
         # Upload unified report to cloud storage
         try:
@@ -223,8 +232,12 @@ def run_analysis(ticker: str, use_parallel: bool = True):
                 section_names=SECTION_NAMES,
                 output_path=equity_pdf
             )
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Equity research PDF generation failed: {e}")
+            data = load_progress()
+            if data:
+                data["pdf_warning"] = f"Equity PDF generation failed: {e}"
+                save_progress(data)
 
         try:
             generate_hedge_fund_memo_pdf(
@@ -234,8 +247,12 @@ def run_analysis(ticker: str, use_parallel: bool = True):
                 section_names=SECTION_NAMES,
                 output_path=memo_pdf
             )
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Investment memo PDF generation failed: {e}")
+            data = load_progress()
+            if data:
+                data["pdf_warning"] = f"Memo PDF generation failed: {e}"
+                save_progress(data)
 
         # Upload reports to cloud storage (if configured)
         try:

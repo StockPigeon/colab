@@ -86,13 +86,24 @@ def create_task_callback(task_name: str) -> Callable:
     next task as in_progress.
 
     Args:
-        task_name: Name of the task (e.g., 'task_price_sentiment')
+        task_name: Name of the task (e.g., 'task_price_sentiment' or 'blue_price_sentiment')
 
     Returns:
         Callback function compatible with CrewAI Task.callback
     """
+    # Normalize task name - strip team prefix (blue_/red_) and add task_ prefix if needed
+    normalized_name = task_name
+    for prefix in ("blue_", "red_"):
+        if task_name.startswith(prefix):
+            normalized_name = "task_" + task_name[len(prefix):]
+            break
+
+    # If no team prefix, ensure task_ prefix exists
+    if not normalized_name.startswith("task_"):
+        normalized_name = "task_" + normalized_name
+
     try:
-        task_index = TASK_ORDER.index(task_name)
+        task_index = TASK_ORDER.index(normalized_name)
     except ValueError:
         # Unknown task - return no-op callback
         return lambda output: None

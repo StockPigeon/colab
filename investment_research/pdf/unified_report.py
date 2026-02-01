@@ -1,6 +1,7 @@
 """Unified Professional Investment Research Report Generator."""
 
 import os
+import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -184,7 +185,19 @@ This approach reduces confirmation bias and ensures rigorous analysis from multi
         md.append(f"- **Company:** {company_name}\n")
         md.append("- **System:** AI Investment Research with CrewAI\n")
 
-        return "".join(md)
+        content = "".join(md)
+        # Replace horizontal rules (---) with (***) to prevent pandoc from
+        # interpreting them as YAML document markers after the frontmatter.
+        # We need to preserve the YAML frontmatter delimiters (first two ---)
+        # so we split on them, process the body, then rejoin.
+        parts = content.split('---', 2)
+        if len(parts) >= 3:
+            # parts[0] is empty (before first ---), parts[1] is frontmatter, parts[2] is body
+            body = parts[2]
+            # Replace --- horizontal rules (with optional trailing whitespace)
+            body = re.sub(r'\n---[ \t]*\n', '\n***\n', body)
+            content = '---'.join(parts[:2]) + '---' + body
+        return content
 
     def _extract_sections(self, crew_output: Any) -> Dict[str, str]:
         """Extract individual sections from crew output."""

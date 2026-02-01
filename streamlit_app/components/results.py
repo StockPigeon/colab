@@ -40,22 +40,35 @@ def render_results(ticker: str, company_name: str = "", report_id: Optional[str]
             except Exception:
                 pass
 
-    # Define local output paths as fallback
-    report_md = Path(f"{ticker}_report.md")
-    equity_pdf = Path(f"{ticker}_equity_research.pdf")
-    memo_pdf = Path(f"{ticker}_investment_memo.pdf")
-    charts_dir = Path("reports/charts")
+    # Define local output paths - check reports/ directory first, then root
+    reports_dir = Path("reports")
+    charts_dir = reports_dir / "charts"
 
-    # Create tabs
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "Report",
-        "Equity Research PDF",
-        "Investment Memo PDF",
-        "Charts"
-    ])
+    # New unified report paths (parallel mode)
+    unified_report_md = reports_dir / f"{ticker}_report.md"
+    unified_pdf = reports_dir / f"{ticker}_Investment_Research_Report.pdf"
+
+    # Legacy separate report paths (sequential mode)
+    legacy_report_md = Path(f"{ticker}_report.md")
+    legacy_equity_pdf = Path(f"{ticker}_equity_research.pdf")
+    legacy_memo_pdf = Path(f"{ticker}_investment_memo.pdf")
+
+    # Determine which format we have
+    has_unified = unified_pdf.exists() or unified_report_md.exists()
+    has_legacy = legacy_equity_pdf.exists() or legacy_memo_pdf.exists()
+
+    # Choose report markdown path
+    report_md = unified_report_md if unified_report_md.exists() else legacy_report_md
 
     if report_metadata:
         # Load from cloud storage
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "Report",
+            "Equity Research PDF",
+            "Investment Memo PDF",
+            "Charts"
+        ])
+
         with tab1:
             _render_markdown_from_url(report_metadata.markdown_url, ticker)
 
@@ -67,16 +80,39 @@ def render_results(ticker: str, company_name: str = "", report_id: Optional[str]
 
         with tab4:
             _render_charts_from_storage(ticker, report_metadata.storage_path)
-    else:
-        # Load from local files
+    elif has_unified:
+        # Load unified report from local files (parallel mode)
+        tab1, tab2, tab3 = st.tabs([
+            "Report",
+            "Research PDF",
+            "Charts"
+        ])
+
         with tab1:
             _render_markdown_report(report_md)
 
         with tab2:
-            _render_pdf(equity_pdf, "equity_research")
+            _render_pdf(unified_pdf, "unified_research")
 
         with tab3:
-            _render_pdf(memo_pdf, "investment_memo")
+            _render_charts(ticker, charts_dir)
+    else:
+        # Load legacy separate reports from local files (sequential mode)
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "Report",
+            "Equity Research PDF",
+            "Investment Memo PDF",
+            "Charts"
+        ])
+
+        with tab1:
+            _render_markdown_report(report_md)
+
+        with tab2:
+            _render_pdf(legacy_equity_pdf, "equity_research")
+
+        with tab3:
+            _render_pdf(legacy_memo_pdf, "investment_memo")
 
         with tab4:
             _render_charts(ticker, charts_dir)
@@ -332,9 +368,15 @@ def _render_charts(ticker: str, charts_dir: Path):
 
 def check_results_exist(ticker: str) -> bool:
     """Check if results files exist for a ticker (local or cloud)."""
-    # Check local first
-    report_md = Path(f"{ticker}_report.md")
-    if report_md.exists():
+    # Check reports/ directory first (unified report)
+    reports_dir = Path("reports")
+    unified_report_md = reports_dir / f"{ticker}_report.md"
+    if unified_report_md.exists():
+        return True
+
+    # Check root directory (legacy format)
+    legacy_report_md = Path(f"{ticker}_report.md")
+    if legacy_report_md.exists():
         return True
 
     # Check cloud storage
